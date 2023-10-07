@@ -18,13 +18,13 @@ var target = targetString.Split(separator).Select(s => double.Parse(s)).ToArray(
 
 var dtwResult = DtwMatrix(source, target, (s, t) => Math.Abs(s - t));
 
-WriteMatrixToConsole(source.Length + 1, target.Length + 1, dtwResult);
+WriteMatrixToConsole(dtwResult, source.Length + 1, target.Length + 1, 1, 1);
 
-static void WriteMatrixToConsole<T>(int n, int m, T[,] matrix)
+static void WriteMatrixToConsole<T>(T[,] matrix, int n, int m, int nOffset = 0, int mOffset = 0)
 {
-    for (var i = 0; i < n; i++)
+    for (var i = nOffset; i < n; i++)
     {
-        for (var j = 0; j < m; j++)
+        for (var j = mOffset; j < m; j++)
         {
             Console.Write(matrix[i, j]);
             Console.Write(' ');
