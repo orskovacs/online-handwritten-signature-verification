@@ -25,16 +25,21 @@ class FeatureExtraction : PipelineBase, ITransformation
 
     private static List<double> Derivative(List<double> f)
     {
-        var derivativeValues = new List<double>();
+        var dF = new List<double>();
 
-        // Account for i = { 0, 1, Count -1, Count - 2 }
+        dF.Add(f[1] - f[0]);
+        dF.Add(f[2] - f[1]);
+
         for (int i = 2; i < f.Count - 2; i++)
         {
             var df = 0.1 * (f[i + 1] - f[i - 1] + 2 * (f[i + 2] - f[i - 2]));
-            derivativeValues.Add(df);
+            dF.Add(df);
         }
 
-        return derivativeValues;
+        dF.Add(f[^2] - f[^3]);
+        dF.Add(f[^1] - f[^2]);
+
+        return dF;
     }
 
     public void Transform(Signature signature)
