@@ -42,15 +42,15 @@ class DtwResult<TElement, TDistance>
 
         var warpingPath = new List<(int Row, int Col)>();
 
-        for (int row = n - 1, col = m - 1;  row > 0 || col > 0;)
+        for (int row = n - 1, col = m - 1;  row > 1 || col > 1;)
         {
             warpingPath.Add((row, col));
 
-            if (row == 0)
+            if (row == 1)
             {
                 col--;
             }
-            else if (col == 0)
+            else if (col == 1)
             {
                 row--;
             }

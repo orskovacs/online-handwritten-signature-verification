@@ -28,16 +28,26 @@ class FeatureExtraction : PipelineBase, ITransformation
         var dF = new List<double>();
 
         dF.Add(f[1] - f[0]);
+        if (dF[^1] == 0)
+            dF[^1] = 4.94065645841246544E-324;
         dF.Add(f[2] - f[1]);
+        if (dF[^1] == 0)
+            dF[^1] = 4.94065645841246544E-324;
 
         for (int i = 2; i < f.Count - 2; i++)
         {
             var df = 0.1 * (f[i + 1] - f[i - 1] + 2 * (f[i + 2] - f[i - 2]));
             dF.Add(df);
+            if (dF[^1] == 0)
+                dF[^1] = 4.94065645841246544E-324;
         }
 
         dF.Add(f[^2] - f[^3]);
+        if (dF[^1] == 0)
+            dF[^1] = 4.94065645841246544E-324;
         dF.Add(f[^1] - f[^2]);
+        if (dF[^1] == 0)
+            dF[^1] = 4.94065645841246544E-324;
 
         return dF;
     }
