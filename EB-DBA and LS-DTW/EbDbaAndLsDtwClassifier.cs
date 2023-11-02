@@ -63,24 +63,24 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return averageEbDbaSequence;
     }
 
-    private static List<double> ResampleLinerInterplotaion(List<double> timeSeries, int length)
+    private static List<double> ResampleLinerInterplotaion(List<double> ts, int length)
     {
-        // TODO: Implement resampling
-        var resampledTimeSeries = new List<double>(length);
+        var resampledTs = new List<double>(length);
+        var factor = (double)ts.Count / length;
 
         for (int i = 0; i < length; i++)
         {
-            if (i < timeSeries.Count)
-            {
-                resampledTimeSeries.Add(timeSeries[i]);
-            }
-            else
-            {
-                resampledTimeSeries.Add(timeSeries[^1]);
-            }
+            var index = i * factor;
+            var indexFloor = (int)Math.Floor(index);
+            var indexCeil = (int)Math.Ceiling(index);
+
+            if (indexCeil >= ts.Count)
+                indexCeil = ts.Count - 1;
+
+            resampledTs.Insert(i, ts[indexFloor] + (ts[indexCeil] - ts[indexFloor]) * (index - indexFloor));
         }
 
-        return resampledTimeSeries;
+        return resampledTs;
     }
 
     public ISignerModel Train(List<Signature> genuineSignatures)
