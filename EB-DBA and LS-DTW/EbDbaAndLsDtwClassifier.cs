@@ -5,14 +5,14 @@ namespace EbDbaAndLsDtw;
 
 class EbDbaAndLsDtwClassifier : IClassifier
 {
-    private const int ITERATION_COUNT = 1;
+    private const int EB_DBA_ITERATION_COUNT = 1;
 
-    private static List<double> EbDba(IEnumerable<List<double>> referenceTimeSeriesSet, int iterationCount)
+    private static IEnumerable<double> EbDba(IEnumerable<IEnumerable<double>> referenceTimeSeriesSet, int iterationCount)
     {
         var timeSeriesCount = referenceTimeSeriesSet.Count();
 
         /* [Step 1] Calculate the average length of the time series. */
-        var timeSeriesAverageLength = referenceTimeSeriesSet.Sum(ts => ts.Count) / timeSeriesCount;
+        var timeSeriesAverageLength = referenceTimeSeriesSet.Sum(ts => ts.Count()) / timeSeriesCount;
 
         /* [Step 2] Resample each time series to the above calculated average
         length using linear interpolation. */
@@ -26,7 +26,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var averageEbSequence = new List<double>(timeSeriesAverageLength);
         for (int i = 0; i < timeSeriesAverageLength; i++)
         {
-            averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts[i]) / timeSeriesCount);
+            averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts.ElementAt(i)) / timeSeriesCount);
         }
 
         /* [Step 4] Compute the Euclidian barycentre-based DTW barycentre average series
@@ -50,7 +50,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
                 foreach (var (row, col) in dtwResult.WarpingPath)
                 {
-                    assoc[row - 1].Add(ts[col - 1]);
+                    assoc[row - 1].Add(ts.ElementAt(col - 1));
                 }
             }
 
@@ -63,10 +63,10 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return averageEbDbaSequence;
     }
 
-    private static List<double> ResampleLinerInterplotaion(List<double> ts, int length)
+    private static IEnumerable<double> ResampleLinerInterplotaion(IEnumerable<double> ts, int length)
     {
         var resampledTs = new List<double>(length);
-        var factor = (double)ts.Count / length;
+        var factor = (double)ts.Count() / length;
 
         for (int i = 0; i < length; i++)
         {
@@ -74,49 +74,92 @@ class EbDbaAndLsDtwClassifier : IClassifier
             var indexFloor = (int)Math.Floor(index);
             var indexCeil = (int)Math.Ceiling(index);
 
-            if (indexCeil >= ts.Count)
-                indexCeil = ts.Count - 1;
+            if (indexCeil >= ts.Count())
+                indexCeil = ts.Count() - 1;
 
-            resampledTs.Insert(i, ts[indexFloor] + (ts[indexCeil] - ts[indexFloor]) * (index - indexFloor));
+            resampledTs.Insert(i, ts.ElementAt(indexFloor) + (ts.ElementAt(indexCeil) - ts.ElementAt(indexFloor)) * (index - indexFloor));
         }
 
         return resampledTs;
     }
 
+    private static IEnumerable<double> EstimateLocalStatibilty(IEnumerable<IEnumerable<double>> references, IEnumerable<double> template)
+    {
+        var directMatchingPoints = new List<List<bool>>();
+        for (int i = 0; i < references.Count(); i++)
+        {
+            directMatchingPoints.Add(new List<bool>());
+        }
+
+        // Find the direct matching points (DMPs)
+        for (int i = 0; i < references.Count(); i++)
+        {
+            var dtwResult = DtwResult<double, double>.Dtw(template, references.ElementAt(i), (a, b) => (a - b) * (a - b));
+
+            for (int j = 0; j < dtwResult.WarpingPath.Count(); j++)
+            {
+                var matchingPointsRow = dtwResult.WarpingPath.Where(w => w.Row == j);
+                var matchingPointsCol = dtwResult.WarpingPath.Where(w => w.Col == j);
+
+                var isDmp = matchingPointsCol.Count() == 1 && matchingPointsRow.Count() == 1;
+                directMatchingPoints[i].Add(isDmp);
+            }
+        }
+
+        var localStability = new List<double>();
+        for (int i = 0; i < template.Count(); i++)
+        {
+            localStability.Add(directMatchingPoints.Select(x => x[i]).Where(x => x).Count() / (double) references.Count());
+        }
+
+        return localStability;
+    }
+
     public ISignerModel Train(List<Signature> genuineSignatures)
     {
-        var xCoordsTemplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.NormalizedX)), ITERATION_COUNT);
+        var xCoordsReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.NormalizedX));
+        var yCoordsReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.NormalizedY));
+        var pathTangentAngleReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.PathTangentAngle));
+        var pathVelocityMagnitudeReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.PathVelocityMagnitude));
+        var logCurvatureRadiusReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.LogCurvatureRadius));
+        var totalAccelerationMagnitudeReferences =
+            genuineSignatures.Select(s => s.GetFeature(AdditionalFeatures.TotalAccelerationMagnitude));
 
-        var yCoordsTemplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.NormalizedY)), ITERATION_COUNT);
+        var xCoordsTemplate = EbDba(xCoordsReferences, EB_DBA_ITERATION_COUNT);
+        var yCoordsTemplate = EbDba(yCoordsReferences, EB_DBA_ITERATION_COUNT);
+        var pathTangentAngleTemplate = EbDba(pathTangentAngleReferences, EB_DBA_ITERATION_COUNT);
+        var pathVelocityMagnitudeTemplate = EbDba(pathVelocityMagnitudeReferences, EB_DBA_ITERATION_COUNT);
+        var logCurvatureRadiusTemplate = EbDba(logCurvatureRadiusReferences, EB_DBA_ITERATION_COUNT);
+        var totalAccelerationMagnitudeTemplate = EbDba(totalAccelerationMagnitudeReferences, EB_DBA_ITERATION_COUNT);
 
-        var pathTangentAngleTemplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.PathTangentAngle)), ITERATION_COUNT);
+        var xCoordsStability = EstimateLocalStatibilty(xCoordsReferences, xCoordsTemplate);
+        var yCoordsStability = EstimateLocalStatibilty(yCoordsReferences, yCoordsTemplate);
+        var pathTangentAngleStability = EstimateLocalStatibilty(pathTangentAngleReferences, pathTangentAngleTemplate);
+        var pathVelocityMagnitudeStability = EstimateLocalStatibilty(pathVelocityMagnitudeReferences, pathVelocityMagnitudeTemplate);
+        var logCurvatureRadiusStability = EstimateLocalStatibilty(logCurvatureRadiusReferences, logCurvatureRadiusTemplate);
+        var totalAccelerationMagnitudeStability = EstimateLocalStatibilty(totalAccelerationMagnitudeReferences, totalAccelerationMagnitudeTemplate);
 
-        var pathVelocityMagnitudeTemplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.PathVelocityMagnitude)), ITERATION_COUNT);
-
-        var logCurvatureRadiusTemnplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.LogCurvatureRadius)), ITERATION_COUNT);
-
-        var totalAccelerationMagnitudeTemplate = EbDba(genuineSignatures.Select(
-                s => s.GetFeature(AdditionalFeatures.TotalAccelerationMagnitude)), ITERATION_COUNT);
-
-        var signerId = genuineSignatures[0].Signer.ID;
-
-        var signerModel = new MeanTemplateSignerModel
+        return new MeanTemplateSignerModel
         { 
-            SignerID = signerId,
+            SignerID = genuineSignatures[0].Signer.ID,
             XCoordsTemplate = xCoordsTemplate,
             YCoordsTemplate = yCoordsTemplate,
             PathTangentAngleTemplate = pathTangentAngleTemplate,
             PathVelocityMagnitudeTemplate = pathVelocityMagnitudeTemplate,
-            LogCurvatureRadiusTemnplate = logCurvatureRadiusTemnplate,
+            LogCurvatureRadiusTemplate = logCurvatureRadiusTemplate,
             TotalAccelerationMagnitudeTemplate = totalAccelerationMagnitudeTemplate,
+            XCoordsLocalStability = xCoordsStability,
+            YCoordsLocalStability= yCoordsStability,
+            PathTangentAngleLocalStability = pathTangentAngleStability,
+            PathVelocityMagnitudeLocalStability = pathVelocityMagnitudeStability,
+            LogCurvatureRadiusLocalStability = logCurvatureRadiusStability,
+            TotalAccelerationMagnitudeLocalStability = totalAccelerationMagnitudeStability,
         };
-
-        return signerModel;
     }
 
     public double Test(ISignerModel model, Signature signature)
