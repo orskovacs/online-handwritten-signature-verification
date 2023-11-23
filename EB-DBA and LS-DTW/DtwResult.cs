@@ -8,7 +8,7 @@ class DtwResult<TElement, TDistance>
     public static DtwResult<TElement, TDistance> Dtw(
         IEnumerable<TElement> source,
         IEnumerable<TElement> target,
-        Func<TElement, TElement, TDistance> distance)
+        Func<TElement, TElement, int, TDistance> distance)
     {
         var n = source.Count() + 1;
         var m = target.Count() + 1;
@@ -28,7 +28,7 @@ class DtwResult<TElement, TDistance>
         {
             for (var col = 1; col < m; col++)
             {
-                var cost = distance(source.ElementAt(row - 1), target.ElementAt(col - 1));
+                var cost = distance(source.ElementAt(row - 1), target.ElementAt(col - 1), row - 1);
                 var minPrev = new TDistance[]
                 {
                     accumulatedCostMatrix[row - 1, col],

@@ -49,4 +49,7 @@ var classifier = new EbDbaAndLsDtwClassifier();
 
 var trainedModel = classifier.Train(signaturesOfUser1.Where(s => s.Origin == Origin.Genuine).ToList());
 
+foreach (var s in signaturesOfUser1)
+    classifier.Test(trainedModel, s);
+
 Console.WriteLine();

@@ -46,7 +46,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 var dtwResult = DtwResult<double, double>.Dtw(
                     averageEbDbaSequence,
                     ts,
-                    (a, b) => (a - b) * (a - b));
+                    (a, b, _) => (a - b) * (a - b));
 
                 foreach (var (row, col) in dtwResult.WarpingPath)
                 {
@@ -94,9 +94,9 @@ class EbDbaAndLsDtwClassifier : IClassifier
         // Find the direct matching points (DMPs)
         for (int i = 0; i < references.Count(); i++)
         {
-            var dtwResult = DtwResult<double, double>.Dtw(template, references.ElementAt(i), (a, b) => (a - b) * (a - b));
+            var dtwResult = DtwResult<double, double>.Dtw(template, references.ElementAt(i), (a, b, _) => (a - b) * (a - b));
 
-            for (int j = 0; j < dtwResult.WarpingPath.Count(); j++)
+            for (int j = 0; j < template.Count(); j++)
             {
                 var matchingPointsRow = dtwResult.WarpingPath.Where(w => w.Row == j);
                 var matchingPointsCol = dtwResult.WarpingPath.Where(w => w.Col == j);
@@ -162,8 +162,71 @@ class EbDbaAndLsDtwClassifier : IClassifier
         };
     }
 
-    public double Test(ISignerModel model, Signature signature)
+    public double Test(ISignerModel model, Signature testSignature)
     {
-        throw new NotImplementedException();
+        if (model is not MeanTemplateSignerModel)
+            throw new ApplicationException("Cannot test using the provided model. Please provide a MeanTemplateSignerModel type model.");
+        var signerModel = (MeanTemplateSignerModel)model;
+
+        var xCoordsTest =
+            testSignature.GetFeature(AdditionalFeatures.NormalizedX);
+        var yCoordsTest =
+            testSignature.GetFeature(AdditionalFeatures.NormalizedY);
+        var pathTangentAngleTest =
+            testSignature.GetFeature(AdditionalFeatures.PathTangentAngle);
+        var pathVelocityMagnitudeTest =
+            testSignature.GetFeature(AdditionalFeatures.PathVelocityMagnitude);
+        var logCurvatureRadiusTest =
+            testSignature.GetFeature(AdditionalFeatures.LogCurvatureRadius);
+        var totalAccelerationMagnitudeTest =
+            testSignature.GetFeature(AdditionalFeatures.TotalAccelerationMagnitude);
+
+        static Func<double, double, int, double> lsWeightedEuclideanDistance(IEnumerable<double> stability) =>
+            (double a, double b, int i) => stability.ElementAt(i) * (a - b) * (a - b);
+
+        var xCoordsDistance = DtwResult<double, double>.Dtw(
+            signerModel.XCoordsTemplate,
+            xCoordsTest,
+            lsWeightedEuclideanDistance(signerModel.XCoordsLocalStability)
+        ).CostMatrix[signerModel.XCoordsTemplate.Count(), xCoordsTest.Count];
+
+        var yCoordsDistance = DtwResult<double, double>.Dtw(
+            signerModel.YCoordsTemplate,
+            yCoordsTest,
+            lsWeightedEuclideanDistance(signerModel.YCoordsLocalStability)
+        ).CostMatrix[signerModel.YCoordsTemplate.Count(), yCoordsTest.Count];
+
+        var pathTangentAngleDistance = DtwResult<double, double>.Dtw(
+            signerModel.PathTangentAngleTemplate,
+            pathTangentAngleTest,
+            lsWeightedEuclideanDistance(signerModel.PathTangentAngleLocalStability)
+        ).CostMatrix[signerModel.PathTangentAngleTemplate.Count(), pathTangentAngleTest.Count];
+
+        var pathVelocityMagnitudeDistance = DtwResult<double, double>.Dtw(
+            signerModel.PathVelocityMagnitudeTemplate,
+            pathVelocityMagnitudeTest,
+            lsWeightedEuclideanDistance(signerModel.PathVelocityMagnitudeLocalStability)
+        ).CostMatrix[signerModel.PathVelocityMagnitudeTemplate.Count(), pathVelocityMagnitudeTest.Count];
+
+        var logCurvatureRadiusDistance = DtwResult<double, double>.Dtw(
+            signerModel.LogCurvatureRadiusTemplate,
+            logCurvatureRadiusTest,
+            lsWeightedEuclideanDistance(signerModel.LogCurvatureRadiusLocalStability)
+        ).CostMatrix[signerModel.LogCurvatureRadiusTemplate.Count(), logCurvatureRadiusTest.Count];
+
+        var totalAccelerationMagnitudeDistance = DtwResult<double, double>.Dtw(
+            signerModel.TotalAccelerationMagnitudeTemplate,
+            totalAccelerationMagnitudeTest,
+            lsWeightedEuclideanDistance(signerModel.TotalAccelerationMagnitudeLocalStability)
+        ).CostMatrix[signerModel.TotalAccelerationMagnitudeTemplate.Count(), totalAccelerationMagnitudeTest.Count];
+
+        var distance = xCoordsDistance +
+            yCoordsDistance +
+            pathTangentAngleDistance +
+            pathVelocityMagnitudeDistance +
+            // logCurvatureRadiusDistance +
+            totalAccelerationMagnitudeDistance;
+
+        return distance > 1000 ? 1 : 0;
     }
 }
