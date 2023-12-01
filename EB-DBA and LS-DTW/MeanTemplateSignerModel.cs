@@ -10,6 +10,8 @@ class MeanTemplateSignerModel : ISignerModel
 
     public required IEnumerable<double> YCoordsTemplate { get; init; }
 
+    public required IEnumerable<double> PenPressureTemplate { get; init; }
+
     public required IEnumerable<double> PathTangentAngleTemplate { get; init; }
 
     public required IEnumerable<double> PathVelocityMagnitudeTemplate { get; init; }
@@ -21,6 +23,8 @@ class MeanTemplateSignerModel : ISignerModel
     public required IEnumerable<double> XCoordsLocalStability { get; init; }
 
     public required IEnumerable<double> YCoordsLocalStability { get; init; }
+
+    public required IEnumerable<double> PenPressureStability { get; init; }
 
     public required IEnumerable<double> PathTangentAngleLocalStability { get; init; }
 

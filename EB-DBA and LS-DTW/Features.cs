@@ -2,7 +2,7 @@
 
 namespace EbDbaAndLsDtw;
 
-public static class AdditionalFeatures
+public static class OriginalFeatures
 {
     public static readonly FeatureDescriptor<List<double>> NormalizedX =
         FeatureDescriptor.Get<List<double>>("X_norm");
@@ -10,6 +10,12 @@ public static class AdditionalFeatures
     public static readonly FeatureDescriptor<List<double>> NormalizedY =
         FeatureDescriptor.Get<List<double>>("Y_norm");
 
+    public static readonly FeatureDescriptor<List<double>> PenPressure =
+        FeatureDescriptor<List<double>>.Get("Pressure");
+}
+
+public static class DerivedFeatures
+{
     public static readonly FeatureDescriptor<List<double>> PathTangentAngle =
         FeatureDescriptor.Get<List<double>>("PathTangentAngle");
 

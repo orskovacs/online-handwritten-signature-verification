@@ -47,6 +47,9 @@ class FeatureExtraction : PipelineBase, ITransformation
         var normX = signature.GetFeature(InputNormalizedX).Normalize();
         var normY = signature.GetFeature(InputNormalizedY).Normalize();
 
+        signature.SetFeature(OriginalFeatures.NormalizedX, normX);
+        signature.SetFeature(OriginalFeatures.NormalizedY, normY);
+
         var dX = Derivative(normX).Normalize();
         var dY = Derivative(normY).Normalize();
 
@@ -55,22 +58,24 @@ class FeatureExtraction : PipelineBase, ITransformation
             .ToList()
             .Normalize();
         signature.SetFeature(OutputPathTangentAngle, th);
-        Progress = 25;
+        Progress = 20;
 
         var v = dX.Zip(dY, (dx, dy) => (dx, dy))
             .Select(_ => Math.Sqrt(_.dx *_.dx + _.dy * _.dy))
             .ToList()
             .Normalize();
         signature.SetFeature(OutputPathVelocityMagnitude, v);
-        Progress = 50;
+        Progress = 40;
 
         var dTh = Derivative(th).Normalize();
+        
         var rho = dTh.Zip(v, (dth, v) => (dth, v))
             .Select(_ => Math.Log(_.v / _.dth))
+            .Where(x => double.IsFinite(x))
             .ToList()
             .Normalize();
         signature.SetFeature(OutputLogCurvatureRadius, rho);
-        Progress = 75;
+        Progress = 60;
 
         var dV = Derivative(v).Normalize();
         var alpha = dV.Zip(v, (dv, v) => (v, dv)).Zip(dTh, (_, dth) => (_.v, _.dv, dth))
@@ -78,6 +83,10 @@ class FeatureExtraction : PipelineBase, ITransformation
             .ToList()
             .Normalize();
         signature.SetFeature(OutputTotalAccelerationMagnitude, alpha);
+        Progress = 180;
+
+        var pressure = signature.GetFeature(OriginalFeatures.PenPressure);
+        signature.SetFeature(OriginalFeatures.PenPressure, pressure.Normalize());
         Progress = 100;
     }
 }
