@@ -151,6 +151,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return new MeanTemplateSignerModel
         { 
             SignerID = genuineSignatures[0].Signer.ID,
+            Threshold = 460,
             XCoordsTemplate = xCoordsTemplate,
             YCoordsTemplate = yCoordsTemplate,
             PenPressureTemplate = penPressureTemplate,
@@ -242,6 +243,6 @@ class EbDbaAndLsDtwClassifier : IClassifier
             logCurvatureRadiusDistance +
             totalAccelerationMagnitudeDistance;
 
-        return distance < 1000 ? 1 : 0;
+        return distance < signerModel.Threshold ? 1 : 0;
     }
 }
