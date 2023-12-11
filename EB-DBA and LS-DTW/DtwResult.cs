@@ -93,4 +93,6 @@ class DtwResult<TElement, TDistance>
     public required IEnumerable<(int Row, int Col)> WarpingPath { get; init; }
 
     public required TDistance[,] CostMatrix { get; init; }
+
+    public TDistance Distance => CostMatrix[CostMatrix.GetUpperBound(0), CostMatrix.GetUpperBound(1)];
 }

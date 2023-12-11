@@ -197,43 +197,43 @@ class EbDbaAndLsDtwClassifier : IClassifier
             signerModel.XCoordsTemplate,
             xCoordsTest,
             lsWeightedEuclideanDistance(signerModel.XCoordsLocalStability)
-        ).CostMatrix[signerModel.XCoordsTemplate.Count(), xCoordsTest.Count];
+        ).Distance;
 
         var yCoordsDistance = DtwResult<double, double>.Dtw(
             signerModel.YCoordsTemplate,
             yCoordsTest,
             lsWeightedEuclideanDistance(signerModel.YCoordsLocalStability)
-        ).CostMatrix[signerModel.YCoordsTemplate.Count(), yCoordsTest.Count];
+        ).Distance;
 
         var penPressureDistance = DtwResult<double, double>.Dtw(
             signerModel.PenPressureTemplate,
             penPressureTest,
             lsWeightedEuclideanDistance(signerModel.PenPressureStability)
-        ).CostMatrix[signerModel.PenPressureTemplate.Count(), penPressureTest.Count];
+        ).Distance;
 
         var pathTangentAngleDistance = DtwResult<double, double>.Dtw(
             signerModel.PathTangentAngleTemplate,
             pathTangentAngleTest,
             lsWeightedEuclideanDistance(signerModel.PathTangentAngleLocalStability)
-        ).CostMatrix[signerModel.PathTangentAngleTemplate.Count(), pathTangentAngleTest.Count];
+        ).Distance;
 
         var pathVelocityMagnitudeDistance = DtwResult<double, double>.Dtw(
             signerModel.PathVelocityMagnitudeTemplate,
             pathVelocityMagnitudeTest,
             lsWeightedEuclideanDistance(signerModel.PathVelocityMagnitudeLocalStability)
-        ).CostMatrix[signerModel.PathVelocityMagnitudeTemplate.Count(), pathVelocityMagnitudeTest.Count];
+        ).Distance;
 
         var logCurvatureRadiusDistance = DtwResult<double, double>.Dtw(
             signerModel.LogCurvatureRadiusTemplate,
             logCurvatureRadiusTest,
             lsWeightedEuclideanDistance(signerModel.LogCurvatureRadiusLocalStability)
-        ).CostMatrix[signerModel.LogCurvatureRadiusTemplate.Count(), logCurvatureRadiusTest.Count];
+        ).Distance;
 
         var totalAccelerationMagnitudeDistance = DtwResult<double, double>.Dtw(
             signerModel.TotalAccelerationMagnitudeTemplate,
             totalAccelerationMagnitudeTest,
             lsWeightedEuclideanDistance(signerModel.TotalAccelerationMagnitudeLocalStability)
-        ).CostMatrix[signerModel.TotalAccelerationMagnitudeTemplate.Count(), totalAccelerationMagnitudeTest.Count];
+        ).Distance;
 
         var distance = xCoordsDistance +
             yCoordsDistance +
