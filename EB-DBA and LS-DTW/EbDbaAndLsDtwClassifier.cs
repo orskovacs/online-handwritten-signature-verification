@@ -115,6 +115,16 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return localStability;
     }
 
+    private static Func<double, double, int, double> LsWeightedEuclideanDistance(IEnumerable<double> stability)
+    {
+        return (double a, double b, int i) => stability.ElementAt(i) * (a - b) * (a - b);
+    }
+
+    private static double Distance(IEnumerable<double> template, IEnumerable<double> test, IEnumerable<double> stability)
+    {
+        return DtwResult<double, double>.Dtw(template, test, LsWeightedEuclideanDistance(stability)).Distance;
+    }
+
     public ISignerModel Train(List<Signature> genuineSignatures)
     {
         var xCoordsReferences =
@@ -148,10 +158,39 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var logCurvatureRadiusStability = EstimateLocalStatibilty(logCurvatureRadiusReferences, logCurvatureRadiusTemplate);
         var totalAccelerationMagnitudeStability = EstimateLocalStatibilty(totalAccelerationMagnitudeReferences, totalAccelerationMagnitudeTemplate);
 
+        var xCoordsDistance = xCoordsReferences
+            .Select(r => Distance(xCoordsTemplate, r, xCoordsStability))
+            .Max();
+        var yCoordsDistance = yCoordsReferences
+            .Select(r => Distance(yCoordsTemplate, r, yCoordsStability))
+            .Max();
+        var penPressureDistance = penPressureReferences
+            .Select(r => Distance(penPressureTemplate, r, penPressureStability))
+            .Max();
+        var pathTangentAngleDistance = pathTangentAngleReferences
+            .Select(r => Distance(pathTangentAngleTemplate, r, pathTangentAngleStability))
+            .Max();
+        var pathVelocityMagnitudeDistance = pathVelocityMagnitudeReferences
+            .Select(r => Distance(pathVelocityMagnitudeTemplate, r, pathVelocityMagnitudeStability))
+            .Max();
+        var logCurvatureRadiusDistance = logCurvatureRadiusReferences
+            .Select(r => Distance(logCurvatureRadiusTemplate, r, logCurvatureRadiusStability))
+            .Max();
+        var totalAccelerationMagnitudeDistance = totalAccelerationMagnitudeReferences
+            .Select(r => Distance(totalAccelerationMagnitudeTemplate, r, totalAccelerationMagnitudeStability))
+            .Max();
+
         return new MeanTemplateSignerModel
-        { 
+        {
             SignerID = genuineSignatures[0].Signer.ID,
-            Threshold = 460,
+            Threshold = 
+                xCoordsDistance * xCoordsStability.Median() +
+                yCoordsDistance * yCoordsStability.Median() +
+                penPressureDistance * penPressureStability.Median() +
+                pathTangentAngleDistance * pathTangentAngleStability.Median() +
+                pathVelocityMagnitudeDistance * pathVelocityMagnitudeStability.Median() +
+                logCurvatureRadiusDistance * logCurvatureRadiusStability.Median() +
+                totalAccelerationMagnitudeDistance * totalAccelerationMagnitudeStability.Median(),
             XCoordsTemplate = xCoordsTemplate,
             YCoordsTemplate = yCoordsTemplate,
             PenPressureTemplate = penPressureTemplate,
@@ -190,59 +229,22 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var totalAccelerationMagnitudeTest =
             testSignature.GetFeature(DerivedFeatures.TotalAccelerationMagnitude);
 
-        static Func<double, double, int, double> lsWeightedEuclideanDistance(IEnumerable<double> stability) =>
-            (double a, double b, int i) => stability.ElementAt(i) * (a - b) * (a - b);
+        var distance =
+            Distance(signerModel.XCoordsTemplate, xCoordsTest, signerModel.XCoordsLocalStability) *
+                signerModel.XCoordsLocalStability.Median() +
+            Distance(signerModel.YCoordsTemplate, yCoordsTest, signerModel.YCoordsLocalStability) *
+                signerModel.YCoordsLocalStability.Median() +
+            Distance(signerModel.PenPressureTemplate, penPressureTest, signerModel.PenPressureStability) *
+                signerModel.PenPressureStability.Median() +
+            Distance(signerModel.PathTangentAngleTemplate, pathTangentAngleTest, signerModel.PathTangentAngleLocalStability) *
+                signerModel.PathTangentAngleLocalStability.Median() +
+            Distance(signerModel.PathVelocityMagnitudeTemplate, pathVelocityMagnitudeTest, signerModel.PathVelocityMagnitudeLocalStability) *
+                signerModel.PathVelocityMagnitudeLocalStability.Median() +
+            Distance(signerModel.LogCurvatureRadiusTemplate, logCurvatureRadiusTest, signerModel.LogCurvatureRadiusLocalStability) *
+                signerModel.LogCurvatureRadiusLocalStability.Median() +
+            Distance(signerModel.TotalAccelerationMagnitudeTemplate, totalAccelerationMagnitudeTest, signerModel.TotalAccelerationMagnitudeLocalStability) *
+                signerModel.TotalAccelerationMagnitudeLocalStability.Median();
 
-        var xCoordsDistance = DtwResult<double, double>.Dtw(
-            signerModel.XCoordsTemplate,
-            xCoordsTest,
-            lsWeightedEuclideanDistance(signerModel.XCoordsLocalStability)
-        ).Distance;
-
-        var yCoordsDistance = DtwResult<double, double>.Dtw(
-            signerModel.YCoordsTemplate,
-            yCoordsTest,
-            lsWeightedEuclideanDistance(signerModel.YCoordsLocalStability)
-        ).Distance;
-
-        var penPressureDistance = DtwResult<double, double>.Dtw(
-            signerModel.PenPressureTemplate,
-            penPressureTest,
-            lsWeightedEuclideanDistance(signerModel.PenPressureStability)
-        ).Distance;
-
-        var pathTangentAngleDistance = DtwResult<double, double>.Dtw(
-            signerModel.PathTangentAngleTemplate,
-            pathTangentAngleTest,
-            lsWeightedEuclideanDistance(signerModel.PathTangentAngleLocalStability)
-        ).Distance;
-
-        var pathVelocityMagnitudeDistance = DtwResult<double, double>.Dtw(
-            signerModel.PathVelocityMagnitudeTemplate,
-            pathVelocityMagnitudeTest,
-            lsWeightedEuclideanDistance(signerModel.PathVelocityMagnitudeLocalStability)
-        ).Distance;
-
-        var logCurvatureRadiusDistance = DtwResult<double, double>.Dtw(
-            signerModel.LogCurvatureRadiusTemplate,
-            logCurvatureRadiusTest,
-            lsWeightedEuclideanDistance(signerModel.LogCurvatureRadiusLocalStability)
-        ).Distance;
-
-        var totalAccelerationMagnitudeDistance = DtwResult<double, double>.Dtw(
-            signerModel.TotalAccelerationMagnitudeTemplate,
-            totalAccelerationMagnitudeTest,
-            lsWeightedEuclideanDistance(signerModel.TotalAccelerationMagnitudeLocalStability)
-        ).Distance;
-
-        var distance = xCoordsDistance +
-            yCoordsDistance +
-            penPressureDistance +
-            pathTangentAngleDistance +
-            pathVelocityMagnitudeDistance +
-            logCurvatureRadiusDistance +
-            totalAccelerationMagnitudeDistance;
-
-        return distance < signerModel.Threshold ? 1 : 0;
+        return distance < signerModel.Threshold - 2100 ? 1 : 0;
     }
 }
