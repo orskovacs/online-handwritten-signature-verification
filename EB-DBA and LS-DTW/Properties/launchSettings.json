@@ -2,7 +2,7 @@
   "profiles": {
     "EB-DBA and LS-DTW": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:/Users/ors/OneDrive - Budapesti Műszaki és Gazdaságtudományi Egyetem/MSc/Önálló laboratórium 1/SVC2004.zip\""
+      "commandLineArgs": "../SVC2004.zip"
     }
   }
 }
