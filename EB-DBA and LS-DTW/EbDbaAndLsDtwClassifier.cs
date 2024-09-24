@@ -7,12 +7,12 @@ class EbDbaAndLsDtwClassifier : IClassifier
 {
     private const int EB_DBA_ITERATION_COUNT = 10;
 
-    private static IEnumerable<double> EbDba(IEnumerable<IEnumerable<double>> referenceTimeSeriesSet, int iterationCount)
+    private static List<double> EbDba(List<List<double>> referenceTimeSeriesSet, int iterationCount)
     {
-        var timeSeriesCount = referenceTimeSeriesSet.Count();
+        var timeSeriesCount = referenceTimeSeriesSet.Count;
 
         /* [Step 1] Calculate the average length of the time series. */
-        var timeSeriesAverageLength = referenceTimeSeriesSet.Sum(ts => ts.Count()) / timeSeriesCount;
+        var timeSeriesAverageLength = referenceTimeSeriesSet.Sum(ts => ts.Count) / timeSeriesCount;
 
         /* [Step 2] Resample each time series to the above calculated average
         length using linear interpolation. */
@@ -26,7 +26,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var averageEbSequence = new List<double>(timeSeriesAverageLength);
         for (int i = 0; i < timeSeriesAverageLength; i++)
         {
-            averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts.ElementAt(i)) / timeSeriesCount);
+            averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts[i]) / timeSeriesCount);
         }
 
         /* [Step 4] Compute the Euclidian barycentre-based DTW barycentre average series
@@ -38,7 +38,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
             var assoc = new List<List<double>>(timeSeriesAverageLength);
             for (int i = 0; i < timeSeriesAverageLength; i++)
             {
-                assoc.Add(new List<double>());
+                assoc.Add([]);
             }
 
             foreach (var ts in referenceTimeSeriesSet)
@@ -63,10 +63,10 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return averageEbDbaSequence;
     }
 
-    private static IEnumerable<double> ResampleLinerInterplotaion(IEnumerable<double> ts, int length)
+    private static List<double> ResampleLinerInterplotaion(List<double> ts, int length)
     {
         var resampledTs = new List<double>(length);
-        var factor = (double)ts.Count() / length;
+        var factor = (double)ts.Count / length;
 
         for (int i = 0; i < length; i++)
         {
@@ -74,8 +74,8 @@ class EbDbaAndLsDtwClassifier : IClassifier
             var indexFloor = (int)Math.Floor(index);
             var indexCeil = (int)Math.Ceiling(index);
 
-            if (indexCeil >= ts.Count())
-                indexCeil = ts.Count() - 1;
+            if (indexCeil >= ts.Count)
+                indexCeil = ts.Count - 1;
 
             resampledTs.Insert(i, ts.ElementAt(indexFloor) + (ts.ElementAt(indexCeil) - ts.ElementAt(indexFloor)) * (index - indexFloor));
         }
@@ -83,20 +83,20 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return resampledTs;
     }
 
-    private static IEnumerable<double> EstimateLocalStatibilty(IEnumerable<IEnumerable<double>> references, IEnumerable<double> template)
+    private static List<double> EstimateLocalStatibilty(List<List<double>> references, List<double> template)
     {
         var directMatchingPoints = new List<List<bool>>();
-        for (int i = 0; i < references.Count(); i++)
+        for (int i = 0; i < references.Count; i++)
         {
-            directMatchingPoints.Add(new List<bool>());
+            directMatchingPoints.Add([]);
         }
 
         // Find the direct matching points (DMPs)
-        for (int i = 0; i < references.Count(); i++)
+        for (int i = 0; i < references.Count; i++)
         {
             var dtwResult = DtwResult<double, double>.Dtw(template, references.ElementAt(i), (a, b, _) => (a - b) * (a - b));
 
-            for (int j = 0; j < template.Count(); j++)
+            for (int j = 0; j < template.Count; j++)
             {
                 var matchingPointsRow = dtwResult.WarpingPath.Where(w => w.Row == j);
                 var matchingPointsCol = dtwResult.WarpingPath.Where(w => w.Col == j);
@@ -107,20 +107,20 @@ class EbDbaAndLsDtwClassifier : IClassifier
         }
 
         var localStability = new List<double>();
-        for (int i = 0; i < template.Count(); i++)
+        for (int i = 0; i < template.Count; i++)
         {
-            localStability.Add(directMatchingPoints.Select(x => x[i]).Where(x => x).Count() / (double) references.Count());
+            localStability.Add(directMatchingPoints.Select(x => x[i]).Where(x => x).Count() / (double) references.Count);
         }
 
         return localStability;
     }
 
-    private static Func<double, double, int, double> LsWeightedEuclideanDistance(IEnumerable<double> stability)
+    private static Func<double, double, int, double> LsWeightedEuclideanDistance(List<double> stability)
     {
         return (double a, double b, int i) => stability.ElementAt(i) * (a - b) * (a - b);
     }
 
-    private static double Distance(IEnumerable<double> template, IEnumerable<double> test, IEnumerable<double> stability)
+    private static double Distance(List<double> template, List<double> test, List<double> stability)
     {
         return DtwResult<double, double>.Dtw(template, test, LsWeightedEuclideanDistance(stability)).Distance;
     }
@@ -128,19 +128,19 @@ class EbDbaAndLsDtwClassifier : IClassifier
     public ISignerModel Train(List<Signature> genuineSignatures)
     {
         var xCoordsReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedX));
+            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedX)).ToList();
         var yCoordsReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedY));
+            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedY)).ToList();
         var penPressureReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.PenPressure));
+            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.PenPressure)).ToList();
         var pathTangentAngleReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathTangentAngle));
+            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathTangentAngle)).ToList();
         var pathVelocityMagnitudeReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathVelocityMagnitude));
+            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathVelocityMagnitude)).ToList();
         var logCurvatureRadiusReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.LogCurvatureRadius));
+            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.LogCurvatureRadius)).ToList();
         var totalAccelerationMagnitudeReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.TotalAccelerationMagnitude));
+            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.TotalAccelerationMagnitude)).ToList();
 
         var xCoordsTemplate = EbDba(xCoordsReferences, EB_DBA_ITERATION_COUNT);
         var yCoordsTemplate = EbDba(yCoordsReferences, EB_DBA_ITERATION_COUNT);
