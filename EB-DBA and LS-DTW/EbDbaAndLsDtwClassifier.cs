@@ -1,4 +1,4 @@
-﻿using SigStat.Common;
+using SigStat.Common;
 using SigStat.Common.Pipeline;
 
 namespace EbDbaAndLsDtw;
@@ -46,7 +46,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 var dtwResult = DtwResult<double, double>.Dtw(
                     averageEbDbaSequence,
                     ts,
-                    (a, b, _) => (a - b) * (a - b));
+                    (a, b, _) => Math.Abs(a - b));
 
                 foreach (var (row, col) in dtwResult.WarpingPath)
                 {
@@ -94,7 +94,11 @@ class EbDbaAndLsDtwClassifier : IClassifier
         // Find the direct matching points (DMPs)
         for (int i = 0; i < references.Count; i++)
         {
-            var dtwResult = DtwResult<double, double>.Dtw(template, references.ElementAt(i), (a, b, _) => (a - b) * (a - b));
+            var dtwResult = DtwResult<double, double>.Dtw(
+                template,
+                references[i],
+                (a, b, _) => Math.Abs(a - b)
+            );
 
             for (int j = 0; j < template.Count; j++)
             {
@@ -117,7 +121,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
     private static Func<double, double, int, double> LsWeightedEuclideanDistance(List<double> stability)
     {
-        return (double a, double b, int i) => stability.ElementAt(i) * (a - b) * (a - b);
+        return (double a, double b, int i) => stability[i] * Math.Abs(a - b);
     }
 
     private static double Distance(List<double> template, List<double> test, List<double> stability)
