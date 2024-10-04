@@ -1,4 +1,4 @@
-using SigStat.Common;
+﻿using SigStat.Common;
 using SigStat.Common.Pipeline;
 
 namespace EbDbaAndLsDtw;
@@ -187,14 +187,14 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return new MeanTemplateSignerModel
         {
             SignerID = genuineSignatures[0].Signer.ID,
-            Threshold = 
-                xCoordsDistance * xCoordsStability.Median() +
-                yCoordsDistance * yCoordsStability.Median() +
-                penPressureDistance * penPressureStability.Median() +
-                pathTangentAngleDistance * pathTangentAngleStability.Median() +
-                pathVelocityMagnitudeDistance * pathVelocityMagnitudeStability.Median() +
-                logCurvatureRadiusDistance * logCurvatureRadiusStability.Median() +
-                totalAccelerationMagnitudeDistance * totalAccelerationMagnitudeStability.Median(),
+            Thresholds = [
+                xCoordsDistance,
+                yCoordsDistance,
+                penPressureDistance,
+                pathTangentAngleDistance,
+                pathVelocityMagnitudeDistance,
+                logCurvatureRadiusDistance,
+                totalAccelerationMagnitudeDistance],
             XCoordsTemplate = xCoordsTemplate,
             YCoordsTemplate = yCoordsTemplate,
             PenPressureTemplate = penPressureTemplate,
@@ -233,22 +233,20 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var totalAccelerationMagnitudeTest =
             testSignature.GetFeature(DerivedFeatures.TotalAccelerationMagnitude);
 
-        var distance =
-            Distance(signerModel.XCoordsTemplate, xCoordsTest, signerModel.XCoordsLocalStability) *
-                signerModel.XCoordsLocalStability.Median() +
-            Distance(signerModel.YCoordsTemplate, yCoordsTest, signerModel.YCoordsLocalStability) *
-                signerModel.YCoordsLocalStability.Median() +
-            Distance(signerModel.PenPressureTemplate, penPressureTest, signerModel.PenPressureStability) *
-                signerModel.PenPressureStability.Median() +
-            Distance(signerModel.PathTangentAngleTemplate, pathTangentAngleTest, signerModel.PathTangentAngleLocalStability) *
-                signerModel.PathTangentAngleLocalStability.Median() +
-            Distance(signerModel.PathVelocityMagnitudeTemplate, pathVelocityMagnitudeTest, signerModel.PathVelocityMagnitudeLocalStability) *
-                signerModel.PathVelocityMagnitudeLocalStability.Median() +
-            Distance(signerModel.LogCurvatureRadiusTemplate, logCurvatureRadiusTest, signerModel.LogCurvatureRadiusLocalStability) *
-                signerModel.LogCurvatureRadiusLocalStability.Median() +
-            Distance(signerModel.TotalAccelerationMagnitudeTemplate, totalAccelerationMagnitudeTest, signerModel.TotalAccelerationMagnitudeLocalStability) *
-                signerModel.TotalAccelerationMagnitudeLocalStability.Median();
+        double[] distances = [
+            Distance(signerModel.XCoordsTemplate, xCoordsTest, signerModel.XCoordsLocalStability) / signerModel.Thresholds[0],
+            Distance(signerModel.YCoordsTemplate, yCoordsTest, signerModel.YCoordsLocalStability) / signerModel.Thresholds[1],
+            Distance(signerModel.PenPressureTemplate, penPressureTest, signerModel.PenPressureStability) / signerModel.Thresholds[2],
+            Distance(signerModel.PathTangentAngleTemplate, pathTangentAngleTest, signerModel.PathTangentAngleLocalStability) / signerModel.Thresholds[3],
+            Distance(signerModel.PathVelocityMagnitudeTemplate, pathVelocityMagnitudeTest, signerModel.PathVelocityMagnitudeLocalStability) / signerModel.Thresholds[4],
+            Distance(signerModel.LogCurvatureRadiusTemplate, logCurvatureRadiusTest, signerModel.LogCurvatureRadiusLocalStability) / signerModel.Thresholds[5],
+            Distance(signerModel.TotalAccelerationMagnitudeTemplate, totalAccelerationMagnitudeTest, signerModel.TotalAccelerationMagnitudeLocalStability) / signerModel.Thresholds[6],
+        ];
 
-        return distance < signerModel.Threshold - 2100 ? 1 : 0;
+        var probabilities = distances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
+
+        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * probabilities[6] * 41500;
+        Console.WriteLine(genuinityProbability);
+        return genuinityProbability;
     }
 }

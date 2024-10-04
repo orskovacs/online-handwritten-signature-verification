@@ -6,7 +6,7 @@ class MeanTemplateSignerModel : ISignerModel
 {
     public required string SignerID { get; init; }
 
-    public required double Threshold { get; init; }
+    public required List<double> Thresholds { get; init; }
 
     public required List<double> XCoordsTemplate { get; init; }
 
