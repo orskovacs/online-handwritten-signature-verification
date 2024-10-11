@@ -191,7 +191,10 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 // TODO: How to combine the per-feature distances?
                 static double CombinePerFeatureDistances(List<double> distances)
                 {
-                    throw new NotImplementedException();
+                    return distances.Aggregate(
+                        seed: 0.0,
+                        (acc, next) => acc + next
+                    );
                 }
 
                 var combinedLsDtwDistance = CombinePerFeatureDistances(lsDtwDistances);
