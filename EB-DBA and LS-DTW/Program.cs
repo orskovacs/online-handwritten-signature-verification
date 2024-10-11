@@ -46,7 +46,7 @@ var benchmark = new VerifierBenchmark()
             }
         ],
     },
-    Sampler = new FirstNSampler()
+    Sampler = new AllSignaturesSampler()
 };
 
 var result = benchmark.Execute(true);
@@ -54,3 +54,14 @@ var result = benchmark.Execute(true);
 Console.WriteLine($"AER: {result.FinalResult.Aer}");
 Console.WriteLine($"FAR: {result.FinalResult.Far}");
 Console.WriteLine($"FRR: {result.FinalResult.Frr}");
+
+
+public class AllSignaturesSampler : Sampler
+{
+    public AllSignaturesSampler() : base(null,null,null)
+    {
+        TrainingFilter = signatures => signatures;
+        GenuineTestFilter = signatures => signatures;
+        ForgeryTestFilter = signatures => signatures;
+    }
+}

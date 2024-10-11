@@ -1,4 +1,5 @@
 ﻿using SigStat.Common;
+using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
 
 namespace EbDbaAndLsDtw;
@@ -141,96 +142,178 @@ class EbDbaAndLsDtwClassifier : IClassifier
             DerivedFeatures.TotalAccelerationMagnitude,
         ];
 
-        var references = examinedFeatures.Select(f => new {
-            Feature = f,
-            References = signatures
-                .Select(s => s.GetFeature<List<double>>(f))
-                .ToList(),
-        });
+        var realSampler = new FirstNSampler();
 
-        var templates = references.Select((r) => new {
-            r.Feature,
-            Template = EbDba(r.References, EB_DBA_ITERATION_COUNT),
-        });
+        List<Signature> trainSignatures = realSampler.SampleReferences(signatures);
+        List<Signature> testGenuine = realSampler.SampleGenuineTests(signatures);
+        List<Signature> testForged = realSampler.SampleForgeryTests(signatures);
 
-        var stabilityValues = references.Zip(templates).Select((r_t) =>
+        List<Signature> testSignatures = [..testGenuine, ..testForged];
+
+        var references = examinedFeatures.ToDictionary(
+            keySelector: f => f,
+            elementSelector: f =>
+                trainSignatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
+        );
+
+        var templates = examinedFeatures.ToDictionary(
+            keySelector: f => f,
+            elementSelector: f => EbDba(references[f], EB_DBA_ITERATION_COUNT)
+        );
+
+        var localStabilityValues = examinedFeatures.ToDictionary(
+            keySelector: f => f,
+            elementSelector: f => EstimateLocalStatibilty(references[f], templates[f])
+        );
+
+        var combinedLsDtwDistances = new DistanceMatrix<string, string, double>();
+
+        foreach (var trainSignature in trainSignatures)
         {
-            var feature = r_t.First.Feature;
-            var references = r_t.First.References;
-            var template = r_t.Second.Template;
-
-            return new
+            foreach (var testSignature in new List<Signature>([..trainSignatures, ..testSignatures]))
             {
-                Feature = feature,
-                Stability = EstimateLocalStatibilty(references, template),
-            };
-        });
+                var featuresFromTestSignature = examinedFeatures.ToDictionary(
+                    keySelector: f => f,
+                    elementSelector: testSignature.GetFeature<List<double>>
+                );
 
-        var thresholds = references.Zip(templates, stabilityValues).Select((r_t_s) => {
-            var feature = r_t_s.First.Feature;
-            var references = r_t_s.First.References;
-            var template = r_t_s.Second.Template;
-            var stability = r_t_s.Third.Stability;
+                var lsDtwDistances = examinedFeatures.Select(f =>
+                {
+                    var lsDtwDistance = Distance(
+                        templates[f],
+                        featuresFromTestSignature[f],
+                        localStabilityValues[f]
+                    );
 
-            return new {
-                Feature = feature,
-                Threshold = references
-                    .Select(r => Distance(template, r, stability))
-                    .Max()
-            };
-        });
+                    return lsDtwDistance; // / signerModel.Thresholds[f];
+                }).ToList();
 
-        return new MeanTemplateSignerModel
+                // TODO: How to combine the per-feature distances?
+                static double CombinePerFeatureDistances(List<double> distances)
+                {
+                    throw new NotImplementedException();
+                }
+
+                var combinedLsDtwDistance = CombinePerFeatureDistances(lsDtwDistances);
+                combinedLsDtwDistances[testSignature.ID, trainSignature.ID] = combinedLsDtwDistance;
+            }
+        }
+
+        var averageDistances = testSignatures
+            .Select(test => new SignatureDistance
+                {
+                    ID = test.ID,
+                    Origin = test.Origin,
+                    Distance = trainSignatures
+                        .Where(train => train.ID != test.ID)
+                        .Select(train => combinedLsDtwDistances[test.ID, train.ID])
+                        .Average()
+                })
+            .OrderBy(d => d.Distance)
+            .ToList();
+
+            List<double> thresholds = [0.0];
+            for (int i = 0; i < averageDistances.Count - 1; i++)
+            {
+                thresholds.Add((averageDistances[i].Distance + averageDistances[i + 1].Distance) / 2);
+            }
+
+            thresholds.Add(averageDistances[averageDistances.Count - 1].Distance + 1);
+
+            var errorRates = thresholds
+                .Select(th => new KeyValuePair<double, ErrorRate>(
+                    th,
+                    CalculateErrorRate(th, averageDistances)
+                )).ToList();
+
+        return new OptimalMeanTemplateSignerModel
         {
-            SignerID = signatures[0].Signer.ID,
-            Thresholds = thresholds.ToDictionary(t => t.Feature, t => t.Threshold),
-            Templates = templates.ToDictionary((t) => t.Feature, (t) => t.Template),
-            LocalStabiltyValues = stabilityValues.ToDictionary((s) => s.Feature, (s) => s.Stability),
+            SignerID = signatures[0].Signer!.ID,
+            DistanceMatrix = combinedLsDtwDistances,
+            SignatureDistanceFromTraining = averageDistances.ToDictionary(sig => sig.ID, sig => sig.Distance),
+            ErrorRates = errorRates,
+            Threshold = errorRates.First(e => e.Value.Far >= e.Value.Frr).Key
         };
     }
 
     public double Test(ISignerModel model, Signature testSignature)
     {
-        if (model is not MeanTemplateSignerModel)
-            throw new ApplicationException("Cannot test using the provided model. Please provide a MeanTemplateSignerModel type model.");
-        var signerModel = (MeanTemplateSignerModel)model;
+        if (model is not OptimalMeanTemplateSignerModel)
+            throw new ApplicationException("Cannot test using the provided model. Please provide an OptimalMeanTemplateSignerModel type model.");
+        var signerModel = (OptimalMeanTemplateSignerModel)model;
 
-        List<FeatureDescriptor> examinedFeatures = [
-            OriginalFeatures.NormalizedX,
-            OriginalFeatures.NormalizedY,
-            OriginalFeatures.PenPressure,
-            DerivedFeatures.PathTangentAngle,
-            DerivedFeatures.PathVelocityMagnitude,
-            DerivedFeatures.LogCurvatureRadius,
-            DerivedFeatures.TotalAccelerationMagnitude,
-        ];
+        var distance = signerModel.SignatureDistanceFromTraining[testSignature.ID];
 
-        var featuresFromTestSignature = examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: testSignature.GetFeature<List<double>>
-        );
+        if (distance <= signerModel.Threshold)
+            return 1;
+        
+        return 0;
+    }
 
-        var lsDtwDistances = examinedFeatures.Select(f =>
+    private static ErrorRate CalculateErrorRate(double threshold, List<SignatureDistance> distances)
+    {
+        int genuineCount = 0, genuineError = 0;
+        int forgedCount = 0, forgedError = 0;
+        foreach (var d in distances)
         {
-            var lsDtwDistance = Distance(
-                signerModel.Templates[f],
-                featuresFromTestSignature[f],
-                signerModel.LocalStabiltyValues[f]
-            );
+            switch (d.Origin)
+            {
+                case Origin.Genuine:
+                    genuineCount++;
+                    if (d.Distance > threshold)
+                        genuineError++;
+                    break;
+                case Origin.Forged:
+                    forgedCount++;
+                    if (d.Distance <= threshold)
+                        forgedError++;
+                    break;
+                case Origin.Unknown:
+                default:
+                    throw new NotSupportedException();
+            }
+        }
 
-            return lsDtwDistance / signerModel.Thresholds[f];
-        });
+        return new ErrorRate {
+            Far = (double)forgedError / forgedCount,
+            Frr = (double)genuineError / genuineCount
+        };
+    }
+}
 
-        var probabilities = lsDtwDistances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
+class OptimalMeanTemplateSignerModel : ISignerModel
+{
+    public required string SignerID { get; set; }
 
-        var genuinityProbability = probabilities.Aggregate(
-            seed: 1.0,
-            (acc, next) => acc * next
-        );
+    public required object DistanceMatrix { get; set; }
 
-        genuinityProbability *= 41500;
+    public required Dictionary<string, double> SignatureDistanceFromTraining { get; set; }
 
-        Console.WriteLine(genuinityProbability);
-        return genuinityProbability;
+    public required List<KeyValuePair<double, ErrorRate>> ErrorRates { get; set; }
+
+    public required double Threshold { get; set; }
+}
+
+struct SignatureDistance : IEquatable<SignatureDistance>
+{
+    public string ID;
+
+    public Origin Origin;
+
+    public double Distance;
+
+    public bool Equals(SignatureDistance other)
+    {
+        return
+            ID == other.ID
+            && Origin.Equals(other.Origin)
+            && (Distance - other.Distance).EqualsZero();
+    }
+}
+
+static class DoubleExtension {
+    public static bool EqualsZero(this double d)
+    {
+        return double.Epsilon >= d && d >= -double.Epsilon;
     }
 }
