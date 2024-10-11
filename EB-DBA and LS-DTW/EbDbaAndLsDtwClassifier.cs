@@ -129,86 +129,63 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return DtwResult<double, double>.Dtw(template, test, LsWeightedEuclideanDistance(stability)).Distance;
     }
 
-    public ISignerModel Train(List<Signature> genuineSignatures)
+    public ISignerModel Train(List<Signature> signatures)
     {
-        var xCoordsReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedX)).ToList();
-        var yCoordsReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.NormalizedY)).ToList();
-        var penPressureReferences =
-            genuineSignatures.Select(s => s.GetFeature(OriginalFeatures.PenPressure)).ToList();
-        var pathTangentAngleReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathTangentAngle)).ToList();
-        var pathVelocityMagnitudeReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.PathVelocityMagnitude)).ToList();
-        var logCurvatureRadiusReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.LogCurvatureRadius)).ToList();
-        var totalAccelerationMagnitudeReferences =
-            genuineSignatures.Select(s => s.GetFeature(DerivedFeatures.TotalAccelerationMagnitude)).ToList();
+        List<FeatureDescriptor> examinedFeatures = [
+            OriginalFeatures.NormalizedX,
+            OriginalFeatures.NormalizedY,
+            OriginalFeatures.PenPressure,
+            DerivedFeatures.PathTangentAngle,
+            DerivedFeatures.PathVelocityMagnitude,
+            DerivedFeatures.LogCurvatureRadius,
+            DerivedFeatures.TotalAccelerationMagnitude,
+        ];
 
-        var xCoordsTemplate = EbDba(xCoordsReferences, EB_DBA_ITERATION_COUNT);
-        var yCoordsTemplate = EbDba(yCoordsReferences, EB_DBA_ITERATION_COUNT);
-        var penPressureTemplate = EbDba(penPressureReferences, EB_DBA_ITERATION_COUNT);
-        var pathTangentAngleTemplate = EbDba(pathTangentAngleReferences, EB_DBA_ITERATION_COUNT);
-        var pathVelocityMagnitudeTemplate = EbDba(pathVelocityMagnitudeReferences, EB_DBA_ITERATION_COUNT);
-        var logCurvatureRadiusTemplate = EbDba(logCurvatureRadiusReferences, EB_DBA_ITERATION_COUNT);
-        var totalAccelerationMagnitudeTemplate = EbDba(totalAccelerationMagnitudeReferences, EB_DBA_ITERATION_COUNT);
+        var references = examinedFeatures.Select(f => new {
+            Feature = f,
+            References = signatures
+                .Select(s => s.GetFeature<List<double>>(f))
+                .ToList(),
+        });
 
-        var xCoordsStability = EstimateLocalStatibilty(xCoordsReferences, xCoordsTemplate);
-        var yCoordsStability = EstimateLocalStatibilty(yCoordsReferences, yCoordsTemplate);
-        var penPressureStability = EstimateLocalStatibilty(penPressureReferences, penPressureTemplate);
-        var pathTangentAngleStability = EstimateLocalStatibilty(pathTangentAngleReferences, pathTangentAngleTemplate);
-        var pathVelocityMagnitudeStability = EstimateLocalStatibilty(pathVelocityMagnitudeReferences, pathVelocityMagnitudeTemplate);
-        var logCurvatureRadiusStability = EstimateLocalStatibilty(logCurvatureRadiusReferences, logCurvatureRadiusTemplate);
-        var totalAccelerationMagnitudeStability = EstimateLocalStatibilty(totalAccelerationMagnitudeReferences, totalAccelerationMagnitudeTemplate);
+        var templates = references.Select((r) => new {
+            r.Feature,
+            Template = EbDba(r.References, EB_DBA_ITERATION_COUNT),
+        });
 
-        var xCoordsDistance = xCoordsReferences
-            .Select(r => Distance(xCoordsTemplate, r, xCoordsStability))
-            .Max();
-        var yCoordsDistance = yCoordsReferences
-            .Select(r => Distance(yCoordsTemplate, r, yCoordsStability))
-            .Max();
-        var penPressureDistance = penPressureReferences
-            .Select(r => Distance(penPressureTemplate, r, penPressureStability))
-            .Max();
-        var pathTangentAngleDistance = pathTangentAngleReferences
-            .Select(r => Distance(pathTangentAngleTemplate, r, pathTangentAngleStability))
-            .Max();
-        var pathVelocityMagnitudeDistance = pathVelocityMagnitudeReferences
-            .Select(r => Distance(pathVelocityMagnitudeTemplate, r, pathVelocityMagnitudeStability))
-            .Max();
-        var logCurvatureRadiusDistance = logCurvatureRadiusReferences
-            .Select(r => Distance(logCurvatureRadiusTemplate, r, logCurvatureRadiusStability))
-            .Max();
-        var totalAccelerationMagnitudeDistance = totalAccelerationMagnitudeReferences
-            .Select(r => Distance(totalAccelerationMagnitudeTemplate, r, totalAccelerationMagnitudeStability))
-            .Max();
+        var stabilityValues = references.Zip(templates).Select((r_t) =>
+        {
+            var feature = r_t.First.Feature;
+            var references = r_t.First.References;
+            var template = r_t.Second.Template;
+
+            return new
+            {
+                Feature = feature,
+                Stability = EstimateLocalStatibilty(references, template),
+            };
+        });
+
+        var thresholds = references.Zip(templates, stabilityValues).Select((r_t_s) => {
+            var feature = r_t_s.First.Feature;
+            var references = r_t_s.First.References;
+            var template = r_t_s.Second.Template;
+            var stability = r_t_s.Third.Stability;
+
+            return new {
+                Feature = feature,
+                Threshold = references
+                    .Select(r => Distance(template, r, stability))
+                    .Max()
+            };
+        });
 
         return new MeanTemplateSignerModel
         {
-            SignerID = genuineSignatures[0].Signer.ID,
-            Thresholds = [
-                xCoordsDistance,
-                yCoordsDistance,
-                penPressureDistance,
-                pathTangentAngleDistance,
-                pathVelocityMagnitudeDistance,
-                logCurvatureRadiusDistance,
-                totalAccelerationMagnitudeDistance],
-            XCoordsTemplate = xCoordsTemplate,
-            YCoordsTemplate = yCoordsTemplate,
-            PenPressureTemplate = penPressureTemplate,
-            PathTangentAngleTemplate = pathTangentAngleTemplate,
-            PathVelocityMagnitudeTemplate = pathVelocityMagnitudeTemplate,
-            LogCurvatureRadiusTemplate = logCurvatureRadiusTemplate,
-            TotalAccelerationMagnitudeTemplate = totalAccelerationMagnitudeTemplate,
-            XCoordsLocalStability = xCoordsStability,
-            YCoordsLocalStability = yCoordsStability,
-            PenPressureStability = penPressureStability,
-            PathTangentAngleLocalStability = pathTangentAngleStability,
-            PathVelocityMagnitudeLocalStability = pathVelocityMagnitudeStability,
-            LogCurvatureRadiusLocalStability = logCurvatureRadiusStability,
-            TotalAccelerationMagnitudeLocalStability = totalAccelerationMagnitudeStability,
+            SignerID = signatures[0].Signer.ID,
+            Thresholds = thresholds.ToDictionary(t => t.Feature, t => t.Threshold),
+            Templates = templates.ToDictionary((t) => t.Feature, (t) => t.Template),
+            LocalStabiltyValues = stabilityValues.ToDictionary((s) => s.Feature, (s) => s.Stability),
         };
     }
 
@@ -218,34 +195,41 @@ class EbDbaAndLsDtwClassifier : IClassifier
             throw new ApplicationException("Cannot test using the provided model. Please provide a MeanTemplateSignerModel type model.");
         var signerModel = (MeanTemplateSignerModel)model;
 
-        var xCoordsTest =
-            testSignature.GetFeature(OriginalFeatures.NormalizedX);
-        var yCoordsTest =
-            testSignature.GetFeature(OriginalFeatures.NormalizedY);
-        var penPressureTest =
-            testSignature.GetFeature(OriginalFeatures.PenPressure);
-        var pathTangentAngleTest =
-            testSignature.GetFeature(DerivedFeatures.PathTangentAngle);
-        var pathVelocityMagnitudeTest =
-            testSignature.GetFeature(DerivedFeatures.PathVelocityMagnitude);
-        var logCurvatureRadiusTest =
-            testSignature.GetFeature(DerivedFeatures.LogCurvatureRadius);
-        var totalAccelerationMagnitudeTest =
-            testSignature.GetFeature(DerivedFeatures.TotalAccelerationMagnitude);
-
-        double[] distances = [
-            Distance(signerModel.XCoordsTemplate, xCoordsTest, signerModel.XCoordsLocalStability) / signerModel.Thresholds[0],
-            Distance(signerModel.YCoordsTemplate, yCoordsTest, signerModel.YCoordsLocalStability) / signerModel.Thresholds[1],
-            Distance(signerModel.PenPressureTemplate, penPressureTest, signerModel.PenPressureStability) / signerModel.Thresholds[2],
-            Distance(signerModel.PathTangentAngleTemplate, pathTangentAngleTest, signerModel.PathTangentAngleLocalStability) / signerModel.Thresholds[3],
-            Distance(signerModel.PathVelocityMagnitudeTemplate, pathVelocityMagnitudeTest, signerModel.PathVelocityMagnitudeLocalStability) / signerModel.Thresholds[4],
-            Distance(signerModel.LogCurvatureRadiusTemplate, logCurvatureRadiusTest, signerModel.LogCurvatureRadiusLocalStability) / signerModel.Thresholds[5],
-            Distance(signerModel.TotalAccelerationMagnitudeTemplate, totalAccelerationMagnitudeTest, signerModel.TotalAccelerationMagnitudeLocalStability) / signerModel.Thresholds[6],
+        List<FeatureDescriptor> examinedFeatures = [
+            OriginalFeatures.NormalizedX,
+            OriginalFeatures.NormalizedY,
+            OriginalFeatures.PenPressure,
+            DerivedFeatures.PathTangentAngle,
+            DerivedFeatures.PathVelocityMagnitude,
+            DerivedFeatures.LogCurvatureRadius,
+            DerivedFeatures.TotalAccelerationMagnitude,
         ];
 
-        var probabilities = distances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
+        var featuresFromTestSignature = examinedFeatures.ToDictionary(
+            keySelector: f => f,
+            elementSelector: testSignature.GetFeature<List<double>>
+        );
 
-        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * probabilities[6] * 41500;
+        var lsDtwDistances = examinedFeatures.Select(f =>
+        {
+            var lsDtwDistance = Distance(
+                signerModel.Templates[f],
+                featuresFromTestSignature[f],
+                signerModel.LocalStabiltyValues[f]
+            );
+
+            return lsDtwDistance / signerModel.Thresholds[f];
+        });
+
+        var probabilities = lsDtwDistances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
+
+        var genuinityProbability = probabilities.Aggregate(
+            seed: 1.0,
+            (acc, next) => acc * next
+        );
+
+        genuinityProbability *= 41500;
+
         Console.WriteLine(genuinityProbability);
         return genuinityProbability;
     }
