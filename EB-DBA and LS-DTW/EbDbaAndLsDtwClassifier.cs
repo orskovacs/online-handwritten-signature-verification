@@ -47,7 +47,8 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 var dtwResult = DtwResult<double, double>.Dtw(
                     averageEbDbaSequence,
                     ts,
-                    (a, b, _) => Math.Abs(a - b));
+                    distance: (a, b, _) => (a - b) * (a - b)
+                );
 
                 foreach (var (row, col) in dtwResult.WarpingPath)
                 {
@@ -98,7 +99,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
             var dtwResult = DtwResult<double, double>.Dtw(
                 template,
                 references[i],
-                (a, b, _) => Math.Abs(a - b)
+                distance: (a, b, _) => (a - b) * (a - b)
             );
 
             for (int j = 0; j < template.Count; j++)
