@@ -61,7 +61,7 @@ public class AllSignaturesSampler : Sampler
     public AllSignaturesSampler() : base(null,null,null)
     {
         TrainingFilter = signatures => signatures;
-        GenuineTestFilter = signatures => signatures;
-        ForgeryTestFilter = signatures => signatures;
+        GenuineTestFilter = new FirstNSampler().GenuineTestFilter;
+        ForgeryTestFilter = new FirstNSampler().ForgeryTestFilter;
     }
 }
