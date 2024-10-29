@@ -63,7 +63,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
                 foreach (var (row, col) in dtwResult.WarpingPath)
                 {
-                    assoc[row - 1].Add(ts.ElementAt(col - 1));
+                    assoc[row - 1].Add(ts[col - 1]);
                 }
             }
 
