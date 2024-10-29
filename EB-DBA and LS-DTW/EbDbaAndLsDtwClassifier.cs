@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
@@ -147,18 +147,12 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return localStability;
     }
 
-    private static Func<double[], double[], int, double>LsWeightedEuclideanDistance(List<double> stability)
-    {
-        return (double[] a, double[] b, int i) =>
-            stability[i] * MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b);
-    }
-
     private static double LsDtwDistance(MultivariateTimeSeries template, MultivariateTimeSeries test, List<double> stability)
     {
         return DtwResult<double[], double>.Dtw(
             template.ToColumnList(),
             test.ToColumnList(),
-            LsWeightedEuclideanDistance(stability)
+            distance: (a, b, i) => stability[i] * MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b)
         ).Distance;
     }
 
