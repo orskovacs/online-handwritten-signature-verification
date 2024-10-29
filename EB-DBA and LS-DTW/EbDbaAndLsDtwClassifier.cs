@@ -67,7 +67,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 }
             }
 
-            for (int i = 1; i < timeSeriesAverageLength; i++)
+            for (int i = 0; i < timeSeriesAverageLength; i++)
             {
                 averageEbDbaSequence[i] = assoc[i].Average();
             }
