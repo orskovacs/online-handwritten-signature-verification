@@ -1,4 +1,5 @@
-﻿using SigStat.Common;
+﻿using System.Collections.ObjectModel;
+using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
 
@@ -7,6 +8,16 @@ namespace EbDbaAndLsDtw;
 class EbDbaAndLsDtwClassifier : IClassifier
 {
     private const int EB_DBA_ITERATION_COUNT = 10;
+
+    readonly ReadOnlyCollection<FeatureDescriptor> examinedFeatures = new([
+        OriginalFeatures.NormalizedX,
+        OriginalFeatures.NormalizedY,
+        OriginalFeatures.PenPressure,
+        DerivedFeatures.PathTangentAngle,
+        DerivedFeatures.PathVelocityMagnitude,
+        DerivedFeatures.LogCurvatureRadius,
+        DerivedFeatures.TotalAccelerationMagnitude,
+    ]);
 
     private static List<double> EbDba(List<List<double>> referenceTimeSeriesSet, int iterationCount)
     {
@@ -85,33 +96,48 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return resampledTs;
     }
 
-    private static List<double> EstimateLocalStatibilty(List<List<double>> references, List<double> template)
+    private static List<double> EstimateLocalStatibilty(MultivariateTimeSeries template, List<MultivariateTimeSeries> references)
     {
-        var directMatchingPoints = new List<List<bool>>();
-        for (int i = 0; i < references.Count; i++)
-        {
-            directMatchingPoints.Add([]);
-        }
+        // Step 1.
+        // Compute the "standard DTW" between the template multivariate time-series and
+        // the reference multivariate time-series set elements.
+        // The result is a set of warping paths, with a length equal to the reference set's.
+        var optimalWarpingPaths = new List<IEnumerable<(int Row, int Col)>>(references.Count);
 
-        // Find the direct matching points (DMPs)
         for (int i = 0; i < references.Count; i++)
         {
-            var dtwResult = DtwResult<double, double>.Dtw(
-                template,
-                references[i],
-                distance: (a, b, _) => (a - b) * (a - b)
+            var dtwResult = DtwResult<double[], double>.Dtw(
+                template.ToColumnList(),
+                references[i].ToColumnList(),
+                distance: (a, b, _) => MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b)
             );
 
+            optimalWarpingPaths.Add(dtwResult.WarpingPath);
+        }
+
+        // Step 2.
+        // Calculate the direct matching points. The DMP's set has the same length as the referneces set
+        // and the warping paths' set. The elements from the DMP's set have the same length as the template's.
+        var directMatchingPoints = new List<List<bool>>(references.Count);
+        for (int i = 0; i < references.Count; i++)
+        {
+            directMatchingPoints.Add(new List<bool>(template.Count));
+        }
+
+        for (int i = 0; i < references.Count; i++)
+        {
             for (int j = 0; j < template.Count; j++)
             {
-                var matchingPointsRow = dtwResult.WarpingPath.Where(w => w.Row == j);
-                var matchingPointsCol = dtwResult.WarpingPath.Where(w => w.Col == j);
+                var matchingPointsRow = optimalWarpingPaths[i].Where(w => w.Row == j);
+                var matchingPointsCol = optimalWarpingPaths[i].Where(w => w.Col == j);
 
                 var isDmp = matchingPointsCol.Count() == 1 && matchingPointsRow.Count() == 1;
                 directMatchingPoints[i].Add(isDmp);
             }
         }
 
+        // Step 3.
+        // Construct the local stability sequence from the DMP's set.
         var localStability = new List<double>();
         for (int i = 0; i < template.Count; i++)
         {
@@ -121,28 +147,23 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return localStability;
     }
 
-    private static Func<double, double, int, double> LsWeightedEuclideanDistance(List<double> stability)
+    private static Func<double[], double[], int, double>LsWeightedEuclideanDistance(List<double> stability)
     {
-        return (double a, double b, int i) => stability[i] * Math.Abs(a - b);
+        return (double[] a, double[] b, int i) =>
+            stability[i] * MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b);
     }
 
-    private static double Distance(List<double> template, List<double> test, List<double> stability)
+    private static double LsDtwDistance(MultivariateTimeSeries template, MultivariateTimeSeries test, List<double> stability)
     {
-        return DtwResult<double, double>.Dtw(template, test, LsWeightedEuclideanDistance(stability)).Distance;
+        return DtwResult<double[], double>.Dtw(
+            template.ToColumnList(),
+            test.ToColumnList(),
+            LsWeightedEuclideanDistance(stability)
+        ).Distance;
     }
 
     public ISignerModel Train(List<Signature> signatures)
     {
-        List<FeatureDescriptor> examinedFeatures = [
-            OriginalFeatures.NormalizedX,
-            OriginalFeatures.NormalizedY,
-            OriginalFeatures.PenPressure,
-            DerivedFeatures.PathTangentAngle,
-            DerivedFeatures.PathVelocityMagnitude,
-            DerivedFeatures.LogCurvatureRadius,
-            DerivedFeatures.TotalAccelerationMagnitude,
-        ];
-
         var realSampler = new FirstNSampler();
 
         List<Signature> trainSignatures = realSampler.SampleReferences(signatures);
@@ -151,55 +172,42 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
         List<Signature> testSignatures = [..testGenuine, ..testForged];
 
-        var references = examinedFeatures.ToDictionary(
+        var referenceSeriesByFeatures = examinedFeatures.ToDictionary(
             keySelector: f => f,
             elementSelector: f =>
                 trainSignatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
         );
 
-        var templates = examinedFeatures.ToDictionary(
+        // TODO: Check whether the EB-DBA calculation shoul be done per-feature.
+        var templateSeriesByFeatures = examinedFeatures.ToDictionary(
             keySelector: f => f,
-            elementSelector: f => EbDba(references[f], EB_DBA_ITERATION_COUNT)
+            elementSelector: f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT)
         );
 
-        var localStabilityValues = examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: f => EstimateLocalStatibilty(references[f], templates[f])
-        );
+        var references = trainSignatures
+            .Select(s => examinedFeatures.ToDictionary(
+                keySelector: f => f,
+                elementSelector: f => s.GetFeature<List<double>>(f).ToList()
+            ))
+            .Select(r => new MultivariateTimeSeries(r))
+            .ToList();
+        var template = new MultivariateTimeSeries(templateSeriesByFeatures);
+        var localStability = EstimateLocalStatibilty(template, references);
 
-        var combinedLsDtwDistances = new DistanceMatrix<string, string, double>();
-
+        var lsDtwDistances = new DistanceMatrix<string, string, double>();
         foreach (var trainSignature in trainSignatures)
         {
             foreach (var testSignature in new List<Signature>([..trainSignatures, ..testSignatures]))
             {
-                var featuresFromTestSignature = examinedFeatures.ToDictionary(
+                var testSignatureDataByFeature = examinedFeatures.ToDictionary(
                     keySelector: f => f,
                     elementSelector: testSignature.GetFeature<List<double>>
                 );
+                var test = new MultivariateTimeSeries(testSignatureDataByFeature);
 
-                var lsDtwDistances = examinedFeatures.Select(f =>
-                {
-                    var lsDtwDistance = Distance(
-                        templates[f],
-                        featuresFromTestSignature[f],
-                        localStabilityValues[f]
-                    );
+                var lsDtwDistance = LsDtwDistance(template, test, localStability);
 
-                    return lsDtwDistance; // / signerModel.Thresholds[f];
-                }).ToList();
-
-                // TODO: How to combine the per-feature distances?
-                static double CombinePerFeatureDistances(List<double> distances)
-                {
-                    return distances.Aggregate(
-                        seed: 0.0,
-                        (acc, next) => acc + next
-                    );
-                }
-
-                var combinedLsDtwDistance = CombinePerFeatureDistances(lsDtwDistances);
-                combinedLsDtwDistances[testSignature.ID, trainSignature.ID] = combinedLsDtwDistance;
+                lsDtwDistances[testSignature.ID, trainSignature.ID] = lsDtwDistance;
             }
         }
 
@@ -210,7 +218,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
                     Origin = test.Origin,
                     Distance = trainSignatures
                         .Where(train => train.ID != test.ID)
-                        .Select(train => combinedLsDtwDistances[test.ID, train.ID])
+                        .Select(train => lsDtwDistances[test.ID, train.ID])
                         .Average()
                 })
             .OrderBy(d => d.Distance)
@@ -233,7 +241,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return new OptimalMeanTemplateSignerModel
         {
             SignerID = signatures[0].Signer!.ID,
-            DistanceMatrix = combinedLsDtwDistances,
+            DistanceMatrix = lsDtwDistances,
             SignatureDistanceFromTraining = averageDistances.ToDictionary(sig => sig.ID, sig => sig.Distance),
             ErrorRates = errorRates,
             Threshold = errorRates.First(e => e.Value.Far >= e.Value.Frr).Key
