@@ -23,78 +23,70 @@ class FeatureExtraction : PipelineBase, ITransformation
     [Output]
     required public FeatureDescriptor<List<double>> OutputTotalAccelerationMagnitude { get; set; }
 
-    private static List<double> Derivative(List<double> f)
-    {
-        var dF = new List<double>();
-
-        dF.Add(f[1] - f[0]);
-        dF.Add(f[2] - f[1]);
-
-        for (int i = 2; i < f.Count - 2; i++)
-        {
-            var df = 0.1 * (f[i + 1] - f[i - 1] + 2 * (f[i + 2] - f[i - 2]));
-            dF.Add(df);
-        }
-
-        dF.Add(f[^2] - f[^3]);
-        dF.Add(f[^1] - f[^2]);
-
-        return dF;
-    }
-
     public void Transform(Signature signature)
     {
-        var normX = signature.GetFeature(InputNormalizedX).Normalize();
-        var normY = signature.GetFeature(InputNormalizedY).Normalize();
+        var dataPointRange = Enumerable.Range(0, signature.GetFeature(InputNormalizedX).Count);
 
-        signature.SetFeature(OriginalFeatures.NormalizedX, normX);
-        signature.SetFeature(OriginalFeatures.NormalizedY, normY);
-
-        var dX = Derivative(normX).Normalize();
-        var dY = Derivative(normY).Normalize();
-
-        var th = dX.Zip(dY, (dx, dy) => (dx, dy))
-            .Select(_ => Math.Atan(_.dy / _.dx))
-            .ToList()
-            .Normalize();
-        signature.SetFeature(OutputPathTangentAngle, th);
-        Progress = 20;
-
-        var v = dX.Zip(dY, (dx, dy) => (dx, dy))
-            .Select(_ => Math.Sqrt(_.dx *_.dx + _.dy * _.dy))
-            .ToList()
-            .Normalize();
-        signature.SetFeature(OutputPathVelocityMagnitude, v);
-        Progress = 40;
-
-        var dTh = Derivative(th).Normalize();
-        
-        var rho = dTh.Zip(v, (dth, v) => (dth, v))
-            .Select(_ => Math.Log(_.v / _.dth))
-            .Where(x => double.IsFinite(x))
-            .ToList()
-            .Normalize();
-        signature.SetFeature(OutputLogCurvatureRadius, rho);
-        Progress = 60;
-
-        var dV = Derivative(v).Normalize();
-        var alpha = dV.Zip(v, (dv, v) => (v, dv)).Zip(dTh, (_, dth) => (_.v, _.dv, dth))
-            .Select(_ => Math.Sqrt(_.dv * _.dv + _.v * _.v * _.dth * _.dth))
-            .ToList()
-            .Normalize();
-        signature.SetFeature(OutputTotalAccelerationMagnitude, alpha);
-        Progress = 180;
-
+        var x = signature.GetFeature(InputNormalizedX);
+        var y = signature.GetFeature(InputNormalizedY);
         var pressure = signature.GetFeature(OriginalFeatures.PenPressure);
+        
+        var dx = x.Derivative();
+        var dy = y.Derivative();
+
+        var th = dataPointRange
+            .Select(i => Math.Atan(dy[i] / dx[i]))
+            .ToList();
+
+        var dth = th.Derivative();
+
+        var v = dataPointRange
+            .Select(i => Math.Sqrt(dx[i] * dx[i] + dy[i] * dy[i]))
+            .ToList();
+
+        var dv = v.Derivative();
+
+        var rho = dataPointRange
+            .Select(i => Math.Log(v[i] / dth[i]))
+            .ToList();
+            
+        var alpha = dataPointRange
+            .Select(i => Math.Sqrt(dv[i] * dv[i] + v[i] * v[i] * dth[i] * dth[i]))
+            .ToList();
+
+        signature.SetFeature(OriginalFeatures.NormalizedX, x.Normalize());
+        signature.SetFeature(OriginalFeatures.NormalizedY, y.Normalize());
         signature.SetFeature(OriginalFeatures.PenPressure, pressure.Normalize());
+        signature.SetFeature(OutputPathTangentAngle, th.Normalize());
+        signature.SetFeature(OutputPathVelocityMagnitude, v.Normalize());
+        signature.SetFeature(OutputLogCurvatureRadius, rho.Normalize());
+        signature.SetFeature(OutputTotalAccelerationMagnitude, alpha.Normalize());
+
         Progress = 100;
     }
 }
 
 internal static class TimeSeriesExtension
 {
-    public static List<double> Normalize(this List<double> ts)
+    public static List<double> Normalize(this List<double> timeSeries)
     {
+        var maxFinite = timeSeries.Where(x => !double.IsNaN(x) && double.IsFinite(x)).Max();
+        var minFinite = timeSeries.Where(x => !double.IsNaN(x) && double.IsFinite(x)).Min();
+
+        var ts = timeSeries.Select(x =>
+        {
+            if (double.IsNaN(x))
+                return 0;
+            
+            if (double.IsPositiveInfinity(x))
+                return maxFinite;
+
+            if (double.IsNegativeInfinity(x))
+                return minFinite;
+            
+            return x;
+        }).ToList();
+
         // Calculate the mean
         var mean = ts.Average();
 
@@ -111,6 +103,21 @@ internal static class TimeSeriesExtension
 
         var translated = normalized.Select(n => n - min).ToList();
 
-        return translated.Select(t => t == 0 ? 4.94065645841246544E-324 : t).ToList();
+        return translated;
     }
+
+    public static List<double> Derivative(this List<double> ts)
+    {
+        return [
+            ts[1] - ts[0],
+            ts[2] - ts[1],
+            ..Enumerable.Range(2, ts.Count - 4)
+                .Select(i => SecondOrderRegressionAtIndex(i, ts)),
+            ts[^2] - ts[^3],
+            ts[^1] - ts[^2]
+        ];
+    }
+
+    private static double SecondOrderRegressionAtIndex(int i, List<double> ts) =>
+        0.1 * (ts[i + 1] - ts[i - 1] + 2 * (ts[i + 2] - ts[i - 2]));
 }
