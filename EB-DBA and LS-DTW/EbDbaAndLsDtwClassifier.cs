@@ -172,7 +172,6 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 trainSignatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
         );
 
-        // TODO: Check whether the EB-DBA calculation shoul be done per-feature.
         var templateSeriesByFeatures = examinedFeatures.ToDictionary(
             keySelector: f => f,
             elementSelector: f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT)
