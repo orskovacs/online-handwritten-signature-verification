@@ -1,6 +1,6 @@
 ﻿using SigStat.Common;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
 public static class OriginalFeatures
 {

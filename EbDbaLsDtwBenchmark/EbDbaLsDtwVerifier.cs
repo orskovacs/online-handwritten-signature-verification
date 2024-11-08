@@ -1,18 +1,14 @@
-﻿using SigStat.Common.Loaders;
 using SigStat.Common;
 using SigStat.Common.Transforms;
-using EbDbaAndLsDtw;
-using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Model;
 
-var path = args[0];
+namespace EbDbaLsDtw.Benchmark;
 
-var benchmark = new VerifierBenchmark()
+class EbDbaLsDtwVerifier : Verifier
 {
-    Loader = new Svc2004Loader(path, true),
-    Verifier = new Verifier()
+    public EbDbaLsDtwVerifier()
     {
-        Classifier = new EbDbaAndLsDtwClassifier(),
+        Classifier = new EbDbaLsDtwClassifier();
         Pipeline =
         [
             new CentroidExtraction
@@ -44,13 +40,6 @@ var benchmark = new VerifierBenchmark()
                 OutputLogCurvatureRadius = DerivedFeatures.LogCurvatureRadius,
                 OutputTotalAccelerationMagnitude = DerivedFeatures.TotalAccelerationMagnitude,
             }
-        ],
-    },
-    Sampler = new FirstNSampler()
-};
-
-var result = benchmark.Execute(true);
-
-Console.WriteLine($"AER: {result.FinalResult.Aer}");
-Console.WriteLine($"FAR: {result.FinalResult.Far}");
-Console.WriteLine($"FRR: {result.FinalResult.Frr}");
+        ];
+    }
+}

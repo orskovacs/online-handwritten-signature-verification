@@ -1,7 +1,7 @@
 using Accord.Math;
 using SigStat.Common;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
 class MultivariateTimeSeries
 {

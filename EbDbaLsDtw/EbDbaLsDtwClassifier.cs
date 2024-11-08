@@ -2,9 +2,9 @@
 using SigStat.Common;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class EbDbaAndLsDtwClassifier : IClassifier
+public class EbDbaLsDtwClassifier : IClassifier
 {
     private const int EB_DBA_ITERATION_COUNT = 10;
 

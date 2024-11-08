@@ -1,7 +1,7 @@
 ﻿using SigStat.Common;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
 class MeanTemplateSignerModel : ISignerModel
 {

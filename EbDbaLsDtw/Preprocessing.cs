@@ -1,9 +1,9 @@
 ﻿using SigStat.Common;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class Preprocessing : PipelineBase, ITransformation
+public class Preprocessing : PipelineBase, ITransformation
 {
     [Input]
     required public FeatureDescriptor<List<double>> InputX { get; set; }

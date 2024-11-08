@@ -1,9 +1,9 @@
 ﻿using SigStat.Common;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class FeatureExtraction : PipelineBase, ITransformation
+public class FeatureExtraction : PipelineBase, ITransformation
 {
     [Input]
     required public FeatureDescriptor<List<double>> InputNormalizedX { get; set; }

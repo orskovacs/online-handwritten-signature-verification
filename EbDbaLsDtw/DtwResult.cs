@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
 class DtwResult<TElement, TDistance>
     where TDistance : INumber<TDistance>, IMinMaxValue<TDistance>
