@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using SigStat.Common;
 using SigStat.Common.Pipeline;
 
@@ -182,37 +182,17 @@ class EbDbaAndLsDtwClassifier : IClassifier
         var template = new MultivariateTimeSeries(templateSeriesByFeatures);
         var localStability = EstimateLocalStatibilty(template, references);
 
-        var lsDtwDistances = new DistanceMatrix<string, string, double>();
-        foreach (var trainSignature in signatures)
-        {
-            foreach (var testSignature in signatures)
-            {
-                var testSignatureDataByFeature = examinedFeatures.ToDictionary(
-                    keySelector: f => f,
-                    elementSelector: testSignature.GetFeature<List<double>>
-                );
-                var test = new MultivariateTimeSeries(testSignatureDataByFeature);
-
-                var lsDtwDistance = LsDtwDistance(template, test, localStability);
-
-                lsDtwDistances[testSignature.ID, trainSignature.ID] = lsDtwDistance;
-            }
-        }
-
-        var averageDistances = signatures
-            .Select(test => signatures
-                .Where(train => train.ID != test.ID)
-                .Select(train => lsDtwDistances[test.ID, train.ID])
-                .Average())
-            .OrderBy(d => d)
+        var distancesFromTemplate = references
+            .Select(reference => LsDtwDistance(template, reference, localStability))
             .ToList();
+        var threshold = distancesFromTemplate.Average();
 
         return new MeanTemplateSignerModel
         {
             SignerID = signatures[0].Signer!.ID,
             Template = template,
             LocalStability = localStability,
-            Threshold = averageDistances.Average(),
+            Threshold = threshold, 
         };
     }
 
