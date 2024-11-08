@@ -228,8 +228,6 @@ class EbDbaAndLsDtwClassifier : IClassifier
             testSignature.GetFeature(DerivedFeatures.PathTangentAngle);
         var pathVelocityMagnitudeTest =
             testSignature.GetFeature(DerivedFeatures.PathVelocityMagnitude);
-        var logCurvatureRadiusTest =
-            testSignature.GetFeature(DerivedFeatures.LogCurvatureRadius);
         var totalAccelerationMagnitudeTest =
             testSignature.GetFeature(DerivedFeatures.TotalAccelerationMagnitude);
 
@@ -239,13 +237,12 @@ class EbDbaAndLsDtwClassifier : IClassifier
             Distance(signerModel.PenPressureTemplate, penPressureTest, signerModel.PenPressureStability) / signerModel.Thresholds[2],
             Distance(signerModel.PathTangentAngleTemplate, pathTangentAngleTest, signerModel.PathTangentAngleLocalStability) / signerModel.Thresholds[3],
             Distance(signerModel.PathVelocityMagnitudeTemplate, pathVelocityMagnitudeTest, signerModel.PathVelocityMagnitudeLocalStability) / signerModel.Thresholds[4],
-            Distance(signerModel.LogCurvatureRadiusTemplate, logCurvatureRadiusTest, signerModel.LogCurvatureRadiusLocalStability) / signerModel.Thresholds[5],
             Distance(signerModel.TotalAccelerationMagnitudeTemplate, totalAccelerationMagnitudeTest, signerModel.TotalAccelerationMagnitudeLocalStability) / signerModel.Thresholds[6],
         ];
 
         var probabilities = distances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
 
-        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * probabilities[6] * 370_000;
+        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * 84_000;
         return genuinityProbability;
     }
 }
