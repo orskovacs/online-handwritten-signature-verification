@@ -15,7 +15,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
         OriginalFeatures.PenPressure,
         DerivedFeatures.PathTangentAngle,
         DerivedFeatures.PathVelocityMagnitude,
-        DerivedFeatures.LogCurvatureRadius,
+        // DerivedFeatures.LogCurvatureRadius,
         DerivedFeatures.TotalAccelerationMagnitude,
     ]);
 
