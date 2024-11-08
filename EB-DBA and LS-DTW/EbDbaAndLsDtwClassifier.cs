@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
@@ -69,7 +69,11 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
             for (int i = 0; i < timeSeriesAverageLength; i++)
             {
-                averageEbDbaSequence[i] = assoc[i].Average();
+                // Improvement is possible only if the assoc[i] list has elements.
+                if (assoc[i].Count != 0)
+                {
+                    averageEbDbaSequence[i] = assoc[i].Average();
+                }
             }
         }
 
