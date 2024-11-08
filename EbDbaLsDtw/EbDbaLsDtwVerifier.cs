@@ -2,9 +2,9 @@ using SigStat.Common;
 using SigStat.Common.Transforms;
 using SigStat.Common.Model;
 
-namespace EbDbaLsDtw.Benchmark;
+namespace EbDbaLsDtw;
 
-class EbDbaLsDtwVerifier : Verifier
+public class EbDbaLsDtwVerifier : Verifier
 {
     public EbDbaLsDtwVerifier()
     {

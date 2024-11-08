@@ -1,7 +1,7 @@
 ﻿using SigStat.Common.Loaders;
 using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
-using EbDbaLsDtw.Benchmark;
+using EbDbaLsDtw;
 
 var path = args[0];
 
