@@ -90,20 +90,12 @@ internal static class TimeSeriesExtension
         // Calculate the mean
         var mean = ts.Average();
 
-        // Subtract the mean from each data point (zero mean)
-        var zeroMean = ts.Select(x => x - mean).ToList();
+        // Calculate the corrected empirical standard deviation
+        var stdDev = Math.Sqrt(ts.Sum(x => (x - mean) * (x - mean)) / (ts.Count - 1));
 
-        // Calculate the standard deviation
-        var stdDev = Math.Sqrt(zeroMean.Average(z => z * z));
+        var normalized = ts.Select(x => (x - mean) / stdDev).ToList();
 
-        // Divide each data point by the standard deviation (unit variance)
-        var normalized = zeroMean.Select(z => z / stdDev).ToList();
-
-        var min = normalized.Min();
-
-        var translated = normalized.Select(n => n - min).ToList();
-
-        return translated;
+        return normalized;
     }
 
     public static List<double> Derivative(this List<double> ts)
