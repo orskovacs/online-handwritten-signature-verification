@@ -245,8 +245,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
         var probabilities = distances.Select(d => 1 - d).Select(p => Math.Min(Math.Max(p, 0.1), 1)).ToList();
 
-        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * probabilities[6] * 41500;
-        Console.WriteLine(genuinityProbability);
+        var genuinityProbability = probabilities[0] * probabilities[1] * probabilities[2] * probabilities[3] * probabilities[4] * probabilities[5] * probabilities[6] * 370_000;
         return genuinityProbability;
     }
 }
