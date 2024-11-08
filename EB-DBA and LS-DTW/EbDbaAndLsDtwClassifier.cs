@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using SigStat.Common;
 using SigStat.Common.Pipeline;
 
@@ -159,25 +159,23 @@ class EbDbaAndLsDtwClassifier : IClassifier
         ).Distance;
     }
 
+    private Dictionary<FeatureDescriptor, T> AggregateByExaminedFeatures<T>(Func<FeatureDescriptor, T> elementSelector)
+    {
+        static FeatureDescriptor keySelector(FeatureDescriptor f) => f;
+        return examinedFeatures.ToDictionary(keySelector, elementSelector);
+    }
+
     public ISignerModel Train(List<Signature> signatures)
     {
-        var referenceSeriesByFeatures = examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: f =>
-                signatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
-        );
-
-        var templateSeriesByFeatures = examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT)
-        );
+        var referenceSeriesByFeatures = AggregateByExaminedFeatures(f => signatures.Select(s => s.GetFeature<List<double>>(f)).ToList());
+        var templateSeriesByFeatures = AggregateByExaminedFeatures(f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT));
 
         var references = signatures
-            .Select(s => examinedFeatures.ToDictionary(
-                keySelector: f => f,
-                elementSelector: f => s.GetFeature<List<double>>(f).ToList()
-            ))
-            .Select(r => new MultivariateTimeSeries(r))
+            .Select(s =>
+            {
+                var dictionary = AggregateByExaminedFeatures(f => s.GetFeature<List<double>>(f).ToList());
+                return new MultivariateTimeSeries(dictionary);
+            })
             .ToList();
         var template = new MultivariateTimeSeries(templateSeriesByFeatures);
         var localStability = EstimateLocalStatibilty(template, references);
