@@ -3,7 +3,7 @@ using SigStat.Common.Pipeline;
 
 namespace EbDbaLsDtw;
 
-class MeanTemplateSignerModel : ISignerModel
+internal class MeanTemplateSignerModel : ISignerModel
 {
     public required string SignerID { get; init; }
 

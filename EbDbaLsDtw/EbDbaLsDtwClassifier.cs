@@ -4,11 +4,12 @@ using SigStat.Common.Pipeline;
 
 namespace EbDbaLsDtw;
 
-public class EbDbaLsDtwClassifier : IClassifier
+public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
+    : IClassifier
 {
-    private const int EB_DBA_ITERATION_COUNT = 10;
+    private const int DefaultEbDbaIterationCount = 10;
 
-    readonly ReadOnlyCollection<FeatureDescriptor> examinedFeatures = new([
+    private readonly ReadOnlyCollection<FeatureDescriptor> _examinedFeatures = new([
         OriginalFeatures.NormalizedX,
         OriginalFeatures.NormalizedY,
         OriginalFeatures.PenPressure,
@@ -35,7 +36,7 @@ public class EbDbaLsDtwClassifier : IClassifier
         resampled times series. It creates a series that has the per-point averages
         from all of the resampled sequences. */
         var averageEbSequence = new List<double>(timeSeriesAverageLength);
-        for (int i = 0; i < timeSeriesAverageLength; i++)
+        for (var i = 0; i < timeSeriesAverageLength; i++)
         {
             averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts[i]) / timeSeriesCount);
         }
@@ -44,10 +45,10 @@ public class EbDbaLsDtwClassifier : IClassifier
         from the original reference time series set, using the above calculated
         Euclidean barycentre sequence as the initial sequence. */
         var averageEbDbaSequence = new List<double>(averageEbSequence);
-        for (int t = 0; t < iterationCount; t++)
+        for (var t = 0; t < iterationCount; t++)
         {
             var assoc = new List<List<double>>(timeSeriesAverageLength);
-            for (int i = 0; i < timeSeriesAverageLength; i++)
+            for (var i = 0; i < timeSeriesAverageLength; i++)
             {
                 assoc.Add([]);
             }
@@ -66,7 +67,7 @@ public class EbDbaLsDtwClassifier : IClassifier
                 }
             }
 
-            for (int i = 0; i < timeSeriesAverageLength; i++)
+            for (var i = 0; i < timeSeriesAverageLength; i++)
             {
                 // Improvement is possible only if the assoc[i] list has elements.
                 if (assoc[i].Count != 0)
@@ -84,7 +85,7 @@ public class EbDbaLsDtwClassifier : IClassifier
         var resampledTs = new List<double>(length);
         var factor = (double)ts.Count / length;
 
-        for (int i = 0; i < length; i++)
+        for (var i = 0; i < length; i++)
         {
             var index = i * factor;
             var indexFloor = (int)Math.Floor(index);
@@ -107,11 +108,11 @@ public class EbDbaLsDtwClassifier : IClassifier
         // The result is a set of warping paths, with a length equal to the reference set's.
         var optimalWarpingPaths = new List<IEnumerable<(int Row, int Col)>>(references.Count);
 
-        for (int i = 0; i < references.Count; i++)
+        foreach (var reference in references)
         {
             var dtwResult = DtwResult<double[], double>.Dtw(
                 template.ToColumnList(),
-                references[i].ToColumnList(),
+                reference.ToColumnList(),
                 distance: (a, b, _) => MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b)
             );
 
@@ -122,19 +123,19 @@ public class EbDbaLsDtwClassifier : IClassifier
         // Calculate the direct matching points. The DMP's set has the same length as the referneces set
         // and the warping paths' set. The elements from the DMP's set have the same length as the template's.
         var directMatchingPoints = new List<List<bool>>(references.Count);
-        for (int i = 0; i < references.Count; i++)
+        for (var i = 0; i < references.Count; i++)
         {
             directMatchingPoints.Add(new List<bool>(template.Count));
         }
 
-        for (int i = 0; i < references.Count; i++)
+        for (var i = 0; i < references.Count; i++)
         {
-            for (int j = 0; j < template.Count; j++)
+            for (var j = 0; j < template.Count; j++)
             {
-                var matchingPointsRow = optimalWarpingPaths[i].Where(w => w.Row == j);
-                var matchingPointsCol = optimalWarpingPaths[i].Where(w => w.Col == j);
+                var matchingPointsRow = optimalWarpingPaths[i].Where(w => w.Row == j).ToList();
+                var matchingPointsCol = optimalWarpingPaths[i].Where(w => w.Col == j).ToList();
 
-                var isDmp = matchingPointsCol.Count() == 1 && matchingPointsRow.Count() == 1;
+                var isDmp = matchingPointsCol.Count == 1 && matchingPointsRow.Count == 1;
                 directMatchingPoints[i].Add(isDmp);
             }
         }
@@ -142,7 +143,7 @@ public class EbDbaLsDtwClassifier : IClassifier
         // Step 3.
         // Construct the local stability sequence from the DMP's set.
         var localStability = new List<double>();
-        for (int i = 0; i < template.Count; i++)
+        for (var i = 0; i < template.Count; i++)
         {
             localStability.Add(directMatchingPoints.Select(x => x[i]).Count(x => x) / (double) references.Count);
         }
@@ -161,14 +162,15 @@ public class EbDbaLsDtwClassifier : IClassifier
 
     private Dictionary<FeatureDescriptor, T> AggregateByExaminedFeatures<T>(Func<FeatureDescriptor, T> elementSelector)
     {
-        static FeatureDescriptor keySelector(FeatureDescriptor f) => f;
-        return examinedFeatures.ToDictionary(keySelector, elementSelector);
+        return _examinedFeatures.ToDictionary(KeySelector, elementSelector);
+        
+        static FeatureDescriptor KeySelector(FeatureDescriptor f) => f;
     }
 
     public ISignerModel Train(List<Signature> signatures)
     {
         var referenceSeriesByFeatures = AggregateByExaminedFeatures(f => signatures.Select(s => s.GetFeature<List<double>>(f)).ToList());
-        var templateSeriesByFeatures = AggregateByExaminedFeatures(f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT));
+        var templateSeriesByFeatures = AggregateByExaminedFeatures(f => EbDba(referenceSeriesByFeatures[f], ebDbaIterationCount));
 
         var references = signatures
             .Select(s =>
@@ -196,11 +198,10 @@ public class EbDbaLsDtwClassifier : IClassifier
 
     public double Test(ISignerModel model, Signature testSignature)
     {
-        if (model is not MeanTemplateSignerModel)
+        if (model is not MeanTemplateSignerModel signerModel)
             throw new ApplicationException("Cannot test using the provided model. Please provide an MeanTemplateSignerModel type model.");
-        var signerModel = (MeanTemplateSignerModel)model;
 
-        var testSignatureDataByFeature = examinedFeatures.ToDictionary(
+        var testSignatureDataByFeature = _examinedFeatures.ToDictionary(
             keySelector: f => f,
             elementSelector: testSignature.GetFeature<List<double>>
         );
@@ -208,9 +209,6 @@ public class EbDbaLsDtwClassifier : IClassifier
 
         var lsDtwDistance = LsDtwDistance(signerModel.Template, test, signerModel.LocalStability);
 
-        if (lsDtwDistance <= signerModel.Threshold)
-            return 1;
-        
-        return 0;
+        return lsDtwDistance <= signerModel.Threshold ? 1 : 0;
     }
 }

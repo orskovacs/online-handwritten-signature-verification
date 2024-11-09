@@ -2,7 +2,7 @@
 
 namespace EbDbaLsDtw;
 
-class DtwResult<TElement, TDistance>
+internal class DtwResult<TElement, TDistance>
     where TDistance : INumber<TDistance>, IMinMaxValue<TDistance>
 {
     public static DtwResult<TElement, TDistance> Dtw(
