@@ -1,4 +1,4 @@
-﻿using SigStat.Common.Loaders;
+using SigStat.Common.Loaders;
 using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
 using EbDbaLsDtw;
@@ -14,6 +14,5 @@ var benchmark = new VerifierBenchmark()
 
 var result = benchmark.Execute(true);
 
-Console.WriteLine($"AER: {result.FinalResult.Aer}");
-Console.WriteLine($"FAR: {result.FinalResult.Far}");
-Console.WriteLine($"FRR: {result.FinalResult.Frr}");
+Console.WriteLine("AER         FAR         FRR");
+Console.WriteLine($"{result.FinalResult.Aer:F6}    {result.FinalResult.Far:F6}    {result.FinalResult.Frr:F6}");
