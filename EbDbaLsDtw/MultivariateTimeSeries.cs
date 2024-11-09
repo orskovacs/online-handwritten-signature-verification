@@ -1,4 +1,3 @@
-using Accord.Math;
 using SigStat.Common;
 
 namespace EbDbaLsDtw;
@@ -71,10 +70,10 @@ class MultivariateTimeSeries
         return features.IndexOf(feature);
     }
 
-    public double[][] ToColumnList()
+    public List<double[]> ToColumnList()
     {
         var colCount = data[0].Length;
-        var columns = new double[colCount][];
+        var columns = new List<double[]>(colCount);
         for (int colIndex = 0; colIndex < colCount; colIndex++)
         {
             var column = new double[Dimension];
@@ -94,16 +93,18 @@ class MultivariateTimeSeries
         return EuclideanDistanceBetweenMultivariatePoints([..a.Values], [..b.Values]);
     }
 
-    public static double EuclideanDistanceBetweenMultivariatePoints(IEnumerable<double> a, IEnumerable<double> b)
+    public static double EuclideanDistanceBetweenMultivariatePoints(double[] a, double[] b)
     {
-        if (a.Count() != b.Count()) {
-            throw new ArgumentException($"The dimension of the two points differs: {a.Count()} != {b.Count()}");
+        if (a.Length != b.Length) {
+            throw new ArgumentException($"The dimension of the two points differs: {a.Length} != {b.Length}");
         }
 
-        var dimension = a.Count();
+        var sum = 0.0;
+        for (var i = 0; i < a.Length; i++)
+        {
+            sum += (a[i] - b[i]) * (a[i] - b[i]);
+        }
 
-        return Enumerable.Range(0, dimension)
-            .Select(i => (a.ElementAt(i) - b.ElementAt(i)) * (a.ElementAt(i) - b.ElementAt(i)))
-            .Sum();
+        return sum;
     }
 }

@@ -93,7 +93,7 @@ public class EbDbaLsDtwClassifier : IClassifier
             if (indexCeil >= ts.Count)
                 indexCeil = ts.Count - 1;
 
-            resampledTs.Insert(i, ts.ElementAt(indexFloor) + (ts.ElementAt(indexCeil) - ts.ElementAt(indexFloor)) * (index - indexFloor));
+            resampledTs.Insert(i, ts[indexFloor] + (ts[indexCeil] - ts[indexFloor]) * (index - indexFloor));
         }
 
         return resampledTs;
@@ -144,7 +144,7 @@ public class EbDbaLsDtwClassifier : IClassifier
         var localStability = new List<double>();
         for (int i = 0; i < template.Count; i++)
         {
-            localStability.Add(directMatchingPoints.Select(x => x[i]).Where(x => x).Count() / (double) references.Count);
+            localStability.Add(directMatchingPoints.Select(x => x[i]).Count(x => x) / (double) references.Count);
         }
 
         return localStability;
