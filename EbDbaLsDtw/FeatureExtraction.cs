@@ -6,26 +6,26 @@ namespace EbDbaLsDtw;
 public class FeatureExtraction : PipelineBase, ITransformation
 {
     [Input]
-    required public FeatureDescriptor<List<double>> InputNormalizedX { get; set; }
+    public required FeatureDescriptor<List<double>> InputNormalizedX { get; init; }
 
     [Input]
-    required public FeatureDescriptor<List<double>> InputNormalizedY { get; set; }
+    public required FeatureDescriptor<List<double>> InputNormalizedY { get; init; }
 
     [Output]
-    required public FeatureDescriptor<List<double>> OutputPathTangentAngle { get; set; }
+    public required FeatureDescriptor<List<double>> OutputPathTangentAngle { get; init; }
 
     [Output]
-    required public FeatureDescriptor<List<double>> OutputPathVelocityMagnitude { get; set; }
+    public required FeatureDescriptor<List<double>> OutputPathVelocityMagnitude { get; init; }
 
     [Output]
-    required public FeatureDescriptor<List<double>> OutputLogCurvatureRadius { get; set; }
+    public required FeatureDescriptor<List<double>> OutputLogCurvatureRadius { get; init; }
 
     [Output]
-    required public FeatureDescriptor<List<double>> OutputTotalAccelerationMagnitude { get; set; }
+    public required FeatureDescriptor<List<double>> OutputTotalAccelerationMagnitude { get; init; }
 
     public void Transform(Signature signature)
     {
-        var dataPointRange = Enumerable.Range(0, signature.GetFeature(InputNormalizedX).Count);
+        var dataPointRange = Enumerable.Range(0, signature.GetFeature(InputNormalizedX).Count).ToList();
 
         var x = signature.GetFeature(InputNormalizedX);
         var y = signature.GetFeature(InputNormalizedY);

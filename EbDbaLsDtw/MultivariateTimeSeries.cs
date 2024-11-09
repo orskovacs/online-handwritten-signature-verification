@@ -19,7 +19,7 @@ internal class MultivariateTimeSeries
             _data[i] = new double[dataCount];
             for (var j = 0; j < dataCount; j++)
             {
-                // TODO: Identify why one of the features has fewer datapoints.
+                // TODO: Identify why one of the features has fewer data points.
                 try
                 {
                     _data[i][j] = univariateTimeSeriesByFeatures[_features[i]][j];

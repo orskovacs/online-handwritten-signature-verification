@@ -6,10 +6,10 @@ namespace EbDbaLsDtw;
 public class Minimum : PipelineBase, ITransformation
 {
     [Input]
-    required public FeatureDescriptor<List<double>> Input { get; set; }
+    public required FeatureDescriptor<List<double>> Input { get; init; }
 
     [Output("Min")]
-    required public FeatureDescriptor<double> OutputMin { get; set; }
+    public required FeatureDescriptor<double> OutputMin { get; init; }
 
     public void Transform(Signature signature)
     {

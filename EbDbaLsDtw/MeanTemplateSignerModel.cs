@@ -9,7 +9,7 @@ internal class MeanTemplateSignerModel : ISignerModel
 
     public required double Threshold { get; init; }
 
-    public required MultivariateTimeSeries Template { get; set; }
+    public required MultivariateTimeSeries Template { get; init; }
 
-    public required List<double> LocalStability { get; set; }
+    public required List<double> LocalStability { get; init; }
 }

@@ -6,31 +6,31 @@ namespace EbDbaLsDtw;
 public class Preprocessing : PipelineBase, ITransformation
 {
     [Input]
-    required public FeatureDescriptor<List<double>> InputX { get; set; }
+    public required FeatureDescriptor<List<double>> InputX { get; init; }
 
     [Input]
-    required public FeatureDescriptor<List<double>> InputY { get; set; }
+    public required FeatureDescriptor<List<double>> InputY { get; init; }
 
     [Input]
-    required public FeatureDescriptor<List<double>> Centroid { get; set; }
+    public required FeatureDescriptor<List<double>> Centroid { get; init; }
 
     [Input]
-    required public FeatureDescriptor<double> MaxX { get; set; }
+    public required FeatureDescriptor<double> MaxX { get; init; }
 
     [Input]
-    required public FeatureDescriptor<double> MaxY { get; set; }
+    public required FeatureDescriptor<double> MaxY { get; init; }
 
     [Input]
-    required public FeatureDescriptor<double> MinX { get; set; }
+    public required FeatureDescriptor<double> MinX { get; init; }
 
     [Input]
-    required public FeatureDescriptor<double> MinY { get; set; }
+    public required FeatureDescriptor<double> MinY { get; init; }
 
     [Output("NormalizedX")]
-    required public FeatureDescriptor<List<double>> OutputNormalizedX { get; set; }
+    public required FeatureDescriptor<List<double>> OutputNormalizedX { get; init; }
 
     [Output("NormalizedY")]
-    required public FeatureDescriptor<List<double>> OutputNormalizedY { get; set; }
+    public required FeatureDescriptor<List<double>> OutputNormalizedY { get; init; }
 
     public void Transform(Signature signature)
     {

@@ -29,19 +29,19 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
         /* [Step 2] Resample each time series to the above calculated average
         length using linear interpolation. */
         var resampledTimeSeriesSet = referenceTimeSeriesSet
-            .Select(ts => ResampleLinerInterplotaion(ts, timeSeriesAverageLength))
+            .Select(ts => ResampleLinerInterpolation(ts, timeSeriesAverageLength))
             .ToList();
 
         /* [Step 3] Create the average Euclidean barycentre sequence from the
         resampled times series. It creates a series that has the per-point averages
-        from all of the resampled sequences. */
+        from all the resampled sequences. */
         var averageEbSequence = new List<double>(timeSeriesAverageLength);
         for (var i = 0; i < timeSeriesAverageLength; i++)
         {
             averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts[i]) / timeSeriesCount);
         }
 
-        /* [Step 4] Compute the Euclidian barycentre-based DTW barycentre average series
+        /* [Step 4] Compute the Euclidean barycentre-based DTW barycentre average series
         from the original reference time series set, using the above calculated
         Euclidean barycentre sequence as the initial sequence. */
         var averageEbDbaSequence = new List<double>(averageEbSequence);
@@ -80,7 +80,7 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
         return averageEbDbaSequence;
     }
 
-    private static List<double> ResampleLinerInterplotaion(List<double> ts, int length)
+    private static List<double> ResampleLinerInterpolation(List<double> ts, int length)
     {
         var resampledTs = new List<double>(length);
         var factor = (double)ts.Count / length;
@@ -100,7 +100,7 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
         return resampledTs;
     }
 
-    private static List<double> EstimateLocalStatibilty(MultivariateTimeSeries template, List<MultivariateTimeSeries> references)
+    private static List<double> EstimateLocalStability(MultivariateTimeSeries template, List<MultivariateTimeSeries> references)
     {
         // Step 1.
         // Compute the "standard DTW" between the template multivariate time-series and
@@ -120,7 +120,7 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
         }
 
         // Step 2.
-        // Calculate the direct matching points. The DMP's set has the same length as the referneces set
+        // Calculate the direct matching points. The DMP's set has the same length as the references set
         // and the warping paths' set. The elements from the DMP's set have the same length as the template's.
         var directMatchingPoints = new List<List<bool>>(references.Count);
         for (var i = 0; i < references.Count; i++)
@@ -180,7 +180,7 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
             })
             .ToList();
         var template = new MultivariateTimeSeries(templateSeriesByFeatures);
-        var localStability = EstimateLocalStatibilty(template, references);
+        var localStability = EstimateLocalStability(template, references);
 
         var distancesFromTemplate = references
             .Select(reference => LsDtwDistance(template, reference, localStability))
