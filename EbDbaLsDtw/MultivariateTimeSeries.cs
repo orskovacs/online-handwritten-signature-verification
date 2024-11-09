@@ -76,7 +76,7 @@ internal class MultivariateTimeSeries
                 column[rowIndex] = _data[rowIndex][colIndex];
             }
 
-            columns[colIndex] = column;
+            columns.Add(column);
         }
 
         return columns;
