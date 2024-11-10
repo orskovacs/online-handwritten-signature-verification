@@ -31,11 +31,11 @@ internal class DtwResult<TElement, TDistance>
                 var cost = distance(source[row - 1], target[col - 1], row - 1);
 
                 // Find the minimum value of the previous costs
-                var minPrev = accumulatedCostMatrix[row - 1, col];
-                if (accumulatedCostMatrix[row, col - 1] < minPrev)
-                    minPrev = accumulatedCostMatrix[row, col - 1];
-                if (accumulatedCostMatrix[row - 1, col - 1] < minPrev)
-                    minPrev = accumulatedCostMatrix[row - 1, col - 1];
+                var minPrev = MinimumOf(
+                    accumulatedCostMatrix[row - 1, col],
+                    accumulatedCostMatrix[row, col - 1],
+                    accumulatedCostMatrix[row - 1, col - 1]
+                );
 
                 accumulatedCostMatrix[row, col] = cost + minPrev;
             }
@@ -58,11 +58,11 @@ internal class DtwResult<TElement, TDistance>
             else
             {
                 // Find the minimum value of the previous costs
-                var minPrev = accumulatedCostMatrix[row - 1, col];
-                if (accumulatedCostMatrix[row, col - 1] < minPrev)
-                    minPrev = accumulatedCostMatrix[row, col - 1];
-                if (accumulatedCostMatrix[row - 1, col - 1] < minPrev)
-                    minPrev = accumulatedCostMatrix[row - 1, col - 1];
+                var minPrev = MinimumOf(
+                    accumulatedCostMatrix[row - 1, col],
+                    accumulatedCostMatrix[row, col - 1],
+                    accumulatedCostMatrix[row - 1, col - 1]
+                );
 
                 if (minPrev == accumulatedCostMatrix[row - 1, col])
                 {
@@ -87,6 +87,16 @@ internal class DtwResult<TElement, TDistance>
             WarpingPath = warpingPath,
             CostMatrix = accumulatedCostMatrix,
         };
+    }
+
+    private static TDistance MinimumOf(TDistance first, TDistance second, TDistance third)
+    {
+        var min = first;
+        if (second < min)
+            min = second;
+        if (third < min)
+            min = third;
+        return min;
     }
 
     private DtwResult() { }
