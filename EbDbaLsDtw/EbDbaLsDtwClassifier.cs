@@ -4,7 +4,7 @@ using SigStat.Common.Pipeline;
 
 namespace EbDbaLsDtw;
 
-public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
+public class EbDbaLsDtwClassifier(Func<List<double>, double> thresholdCalculator, int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
     : IClassifier
 {
     private const int DefaultEbDbaIterationCount = 10;
@@ -185,7 +185,7 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
         var distancesFromTemplate = references
             .Select(reference => LsDtwDistance(template, reference, localStability))
             .ToList();
-        var threshold = distancesFromTemplate.Average();
+        var threshold = thresholdCalculator(distancesFromTemplate);
 
         return new MeanTemplateSignerModel
         {
