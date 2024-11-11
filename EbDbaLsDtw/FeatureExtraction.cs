@@ -54,13 +54,13 @@ public class FeatureExtraction : PipelineBase, ITransformation
             .Select(i => Math.Sqrt(dv[i] * dv[i] + v[i] * v[i] * dth[i] * dth[i]))
             .ToList();
 
-        signature.SetFeature(OriginalFeatures.NormalizedX, x.Normalize());
-        signature.SetFeature(OriginalFeatures.NormalizedY, y.Normalize());
-        signature.SetFeature(OriginalFeatures.PenPressure, pressure.Normalize());
-        signature.SetFeature(OutputPathTangentAngle, th.Normalize());
-        signature.SetFeature(OutputPathVelocityMagnitude, v.Normalize());
-        signature.SetFeature(OutputLogCurvatureRadius, rho.Normalize());
-        signature.SetFeature(OutputTotalAccelerationMagnitude, alpha.Normalize());
+        signature.SetFeature(OriginalFeatures.NormalizedX, x.ToNormalized());
+        signature.SetFeature(OriginalFeatures.NormalizedY, y.ToNormalized());
+        signature.SetFeature(OriginalFeatures.PenPressure, pressure.ToNormalized());
+        signature.SetFeature(OutputPathTangentAngle, th.ToNormalized());
+        signature.SetFeature(OutputPathVelocityMagnitude, v.ToNormalized());
+        signature.SetFeature(OutputLogCurvatureRadius, rho.ToNormalized());
+        signature.SetFeature(OutputTotalAccelerationMagnitude, alpha.ToNormalized());
 
         Progress = 100;
     }

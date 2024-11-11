@@ -2,7 +2,7 @@ namespace EbDbaLsDtw;
 
 public static class TimeSeriesExtension
 {
-    public static List<double> Normalize(this List<double> timeSeries)
+    public static List<double> ToNormalized(this List<double> timeSeries)
     {
         var maxFinite = timeSeries.Where(x => !double.IsNaN(x) && double.IsFinite(x)).Max();
         var minFinite = timeSeries.Where(x => !double.IsNaN(x) && double.IsFinite(x)).Min();
