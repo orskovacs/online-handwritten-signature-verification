@@ -25,7 +25,7 @@ public static class TimeSeriesExtension
         var mean = ts.Average();
 
         // Calculate the corrected empirical standard deviation
-        var stdDev = Math.Sqrt(ts.Sum(x => (x - mean) * (x - mean)) / (ts.Count - 1));
+        var stdDev = ts.StandardDeviation();
 
         var normalized = ts.Select(x => (x - mean) / stdDev).ToList();
 
@@ -46,4 +46,15 @@ public static class TimeSeriesExtension
 
     private static double SecondOrderRegressionAtIndex(int i, List<double> ts) =>
         0.1 * (ts[i + 1] - ts[i - 1] + 2 * (ts[i + 2] - ts[i - 2]));
+    
+    /// <summary>
+    /// Calculates the corrected empirical standard deviation of the given time series.
+    /// </summary>
+    /// <param name="ts">Time series</param>
+    /// <returns>Corrected empirical standard deviation</returns>
+    public static double StandardDeviation(this List<double> ts)
+    {
+        var mean = ts.Average();
+        return Math.Sqrt(ts.Sum(x => (x - mean) * (x - mean)) / (ts.Count - 1));
+    }
 }
