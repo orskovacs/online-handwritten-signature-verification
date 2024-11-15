@@ -215,7 +215,7 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
         var averageDistances = testSignatures
             .Select(test => new SignatureDistance
                 {
-                    ID = test.ID,
+                    Id = test.ID,
                     Origin = test.Origin,
                     Distance = trainSignatures
                         .Where(train => train.ID != test.ID)
@@ -231,7 +231,7 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
                 thresholds.Add((averageDistances[i].Distance + averageDistances[i + 1].Distance) / 2);
             }
 
-            thresholds.Add(averageDistances[averageDistances.Count - 1].Distance + 1);
+            thresholds.Add(averageDistances[^1].Distance + 1);
 
             var errorRates = thresholds
                 .Select(th => new KeyValuePair<double, ErrorRate>(
@@ -243,7 +243,7 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
         {
             SignerID = signatures[0].Signer!.ID,
             DistanceMatrix = lsDtwDistances,
-            SignatureDistanceFromTraining = averageDistances.ToDictionary(sig => sig.ID, sig => sig.Distance),
+            SignatureDistanceFromTraining = averageDistances.ToDictionary(sig => sig.Id, sig => sig.Distance),
             ErrorRates = errorRates,
             Threshold = errorRates.First(e => e.Value.Far >= e.Value.Frr).Key
         };
@@ -251,16 +251,12 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
 
     public double Test(ISignerModel model, Signature testSignature)
     {
-        if (model is not OptimalMeanTemplateSignerModel)
+        if (model is not OptimalMeanTemplateSignerModel signerModel)
             throw new ApplicationException("Cannot test using the provided model. Please provide an OptimalMeanTemplateSignerModel type model.");
-        var signerModel = (OptimalMeanTemplateSignerModel)model;
 
         var distance = signerModel.SignatureDistanceFromTraining[testSignature.ID];
 
-        if (distance <= signerModel.Threshold)
-            return 1;
-        
-        return 0;
+        return distance <= signerModel.Threshold ? 1 : 0;
     }
 
     private static ErrorRate CalculateErrorRate(double threshold, List<SignatureDistance> distances)
@@ -296,37 +292,42 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
 
 class OptimalMeanTemplateSignerModel : ISignerModel
 {
-    public required string SignerID { get; set; }
+    public required string SignerID { get; init; }
 
-    public required object DistanceMatrix { get; set; }
+    public required object DistanceMatrix { get; init; }
 
-    public required Dictionary<string, double> SignatureDistanceFromTraining { get; set; }
+    public required Dictionary<string, double> SignatureDistanceFromTraining { get; init; }
 
-    public required List<KeyValuePair<double, ErrorRate>> ErrorRates { get; set; }
+    public required List<KeyValuePair<double, ErrorRate>> ErrorRates { get; init; }
 
-    public required double Threshold { get; set; }
+    public required double Threshold { get; init; }
 }
 
-struct SignatureDistance : IEquatable<SignatureDistance>
+internal readonly struct SignatureDistance : IEquatable<SignatureDistance>
 {
-    public string ID;
+    public required string Id { get; init; }
 
-    public Origin Origin;
+    public required Origin Origin { get; init; }
 
-    public double Distance;
+    public required double Distance { get; init; }
 
     public bool Equals(SignatureDistance other)
     {
         return
-            ID == other.ID
+            Id == other.Id
             && Origin.Equals(other.Origin)
             && (Distance - other.Distance).EqualsZero();
     }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is SignatureDistance other && Equals(other);
+    }
 }
 
-static class DoubleExtension {
+internal static class DoubleExtension {
     public static bool EqualsZero(this double d)
     {
-        return double.Epsilon >= d && d >= -double.Epsilon;
+        return d is <= double.Epsilon and >= -double.Epsilon;
     }
 }
