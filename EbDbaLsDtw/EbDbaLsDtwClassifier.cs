@@ -175,23 +175,22 @@ public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount =
 
         List<Signature> testSignatures = [..testGenuine, ..testForged];
 
-        var referenceSeriesByFeatures = _examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: f =>
-                trainSignatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
-        );
+        var referenceSeriesByFeatures =
+            AggregateByExaminedFeatures(f => trainSignatures
+                .Select(s => s.GetFeature<List<double>>(f))
+                .ToList()
+            );
 
-        var templateSeriesByFeatures = _examinedFeatures.ToDictionary(
-            keySelector: f => f,
-            elementSelector: f => EbDba(referenceSeriesByFeatures[f], ebDbaIterationCount)
-        );
-
+        var templateSeriesByFeatures =
+            AggregateByExaminedFeatures(f => EbDba(referenceSeriesByFeatures[f], ebDbaIterationCount));
+        
         var references = trainSignatures
-            .Select(s => _examinedFeatures.ToDictionary(
-                keySelector: f => f,
-                elementSelector: f => s.GetFeature<List<double>>(f).ToList()
-            ))
-            .Select(r => new MultivariateTimeSeries(r))
+            .Select(s =>
+            {
+                var signatureUnivariateTimeSeriesByFeatures =
+                    AggregateByExaminedFeatures(s.GetFeature<List<double>>);
+                return new MultivariateTimeSeries(signatureUnivariateTimeSeriesByFeatures);
+            })
             .ToList();
         var template = new MultivariateTimeSeries(templateSeriesByFeatures);
         var localStability = EstimateLocalStability(template, references);
