@@ -10,7 +10,7 @@ var benchmark = new VerifierBenchmark()
 {
     Verifier = new Verifier
     {
-        Classifier = new EbDbaLsDtwClassifier(),
+        Classifier = new EbDbaLsDtwClassifier(new FirstNSampler()),
         Pipeline = EbDbaLsDtwVerifierItems.FeatureExtractorPipeline,
     },
     Loader = new Svc2004Loader(path, true),

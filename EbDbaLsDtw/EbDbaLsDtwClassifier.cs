@@ -1,11 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using SigStat.Common;
-using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
 
 namespace EbDbaLsDtw;
 
-public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
+public class EbDbaLsDtwClassifier(Sampler realSampler, int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
     : IClassifier
 {
     private const int DefaultEbDbaIterationCount = 10;
@@ -170,8 +169,6 @@ public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier
 
     public ISignerModel Train(List<Signature> signatures)
     {
-        var realSampler = new FirstNSampler();
-
         List<Signature> trainSignatures = realSampler.SampleReferences(signatures);
         List<Signature> testGenuine = realSampler.SampleGenuineTests(signatures);
         List<Signature> testForged = realSampler.SampleForgeryTests(signatures);
