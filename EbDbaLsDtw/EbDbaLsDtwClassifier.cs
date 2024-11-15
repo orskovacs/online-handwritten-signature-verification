@@ -3,19 +3,20 @@ using SigStat.Common;
 using SigStat.Common.Framework.Samplers;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class EbDbaAndLsDtwClassifier : IClassifier
+public class EbDbaLsDtwClassifier(int ebDbaIterationCount = EbDbaLsDtwClassifier.DefaultEbDbaIterationCount)
+    : IClassifier
 {
-    private const int EB_DBA_ITERATION_COUNT = 10;
+    private const int DefaultEbDbaIterationCount = 10;
 
-    readonly ReadOnlyCollection<FeatureDescriptor> examinedFeatures = new([
+    private readonly ReadOnlyCollection<FeatureDescriptor> _examinedFeatures = new([
         OriginalFeatures.NormalizedX,
         OriginalFeatures.NormalizedY,
         OriginalFeatures.PenPressure,
         DerivedFeatures.PathTangentAngle,
         DerivedFeatures.PathVelocityMagnitude,
-        // DerivedFeatures.LogCurvatureRadius,
+        DerivedFeatures.LogCurvatureRadius,
         DerivedFeatures.TotalAccelerationMagnitude,
     ]);
 
@@ -29,26 +30,26 @@ class EbDbaAndLsDtwClassifier : IClassifier
         /* [Step 2] Resample each time series to the above calculated average
         length using linear interpolation. */
         var resampledTimeSeriesSet = referenceTimeSeriesSet
-            .Select(ts => ResampleLinerInterplotaion(ts, timeSeriesAverageLength))
+            .Select(ts => ResampleLinerInterpolation(ts, timeSeriesAverageLength))
             .ToList();
 
         /* [Step 3] Create the average Euclidean barycentre sequence from the
         resampled times series. It creates a series that has the per-point averages
-        from all of the resampled sequences. */
+        from all the resampled sequences. */
         var averageEbSequence = new List<double>(timeSeriesAverageLength);
-        for (int i = 0; i < timeSeriesAverageLength; i++)
+        for (var i = 0; i < timeSeriesAverageLength; i++)
         {
             averageEbSequence.Add(resampledTimeSeriesSet.Sum(ts => ts[i]) / timeSeriesCount);
         }
 
-        /* [Step 4] Compute the Euclidian barycentre-based DTW barycentre average series
+        /* [Step 4] Compute the Euclidean barycentre-based DTW barycentre average series
         from the original reference time series set, using the above calculated
         Euclidean barycentre sequence as the initial sequence. */
         var averageEbDbaSequence = new List<double>(averageEbSequence);
-        for (int t = 0; t < iterationCount; t++)
+        for (var t = 0; t < iterationCount; t++)
         {
             var assoc = new List<List<double>>(timeSeriesAverageLength);
-            for (int i = 0; i < timeSeriesAverageLength; i++)
+            for (var i = 0; i < timeSeriesAverageLength; i++)
             {
                 assoc.Add([]);
             }
@@ -67,7 +68,7 @@ class EbDbaAndLsDtwClassifier : IClassifier
                 }
             }
 
-            for (int i = 0; i < timeSeriesAverageLength; i++)
+            for (var i = 0; i < timeSeriesAverageLength; i++)
             {
                 // Improvement is possible only if the assoc[i] list has elements.
                 if (assoc[i].Count != 0)
@@ -80,12 +81,12 @@ class EbDbaAndLsDtwClassifier : IClassifier
         return averageEbDbaSequence;
     }
 
-    private static List<double> ResampleLinerInterplotaion(List<double> ts, int length)
+    private static List<double> ResampleLinerInterpolation(List<double> ts, int length)
     {
         var resampledTs = new List<double>(length);
         var factor = (double)ts.Count / length;
 
-        for (int i = 0; i < length; i++)
+        for (var i = 0; i < length; i++)
         {
             var index = i * factor;
             var indexFloor = (int)Math.Floor(index);
@@ -94,13 +95,13 @@ class EbDbaAndLsDtwClassifier : IClassifier
             if (indexCeil >= ts.Count)
                 indexCeil = ts.Count - 1;
 
-            resampledTs.Insert(i, ts.ElementAt(indexFloor) + (ts.ElementAt(indexCeil) - ts.ElementAt(indexFloor)) * (index - indexFloor));
+            resampledTs.Insert(i, ts[indexFloor] + (ts[indexCeil] - ts[indexFloor]) * (index - indexFloor));
         }
 
         return resampledTs;
     }
 
-    private static List<double> EstimateLocalStatibilty(MultivariateTimeSeries template, List<MultivariateTimeSeries> references)
+    private static List<double> EstimateLocalStability(MultivariateTimeSeries template, List<MultivariateTimeSeries> references)
     {
         // Step 1.
         // Compute the "standard DTW" between the template multivariate time-series and
@@ -108,11 +109,11 @@ class EbDbaAndLsDtwClassifier : IClassifier
         // The result is a set of warping paths, with a length equal to the reference set's.
         var optimalWarpingPaths = new List<IEnumerable<(int Row, int Col)>>(references.Count);
 
-        for (int i = 0; i < references.Count; i++)
+        foreach (var reference in references)
         {
             var dtwResult = DtwResult<double[], double>.Dtw(
                 template.ToColumnList(),
-                references[i].ToColumnList(),
+                reference.ToColumnList(),
                 distance: (a, b, _) => MultivariateTimeSeries.EuclideanDistanceBetweenMultivariatePoints(a, b)
             );
 
@@ -120,22 +121,22 @@ class EbDbaAndLsDtwClassifier : IClassifier
         }
 
         // Step 2.
-        // Calculate the direct matching points. The DMP's set has the same length as the referneces set
+        // Calculate the direct matching points. The DMP's set has the same length as the references set
         // and the warping paths' set. The elements from the DMP's set have the same length as the template's.
         var directMatchingPoints = new List<List<bool>>(references.Count);
-        for (int i = 0; i < references.Count; i++)
+        for (var i = 0; i < references.Count; i++)
         {
             directMatchingPoints.Add(new List<bool>(template.Count));
         }
 
-        for (int i = 0; i < references.Count; i++)
+        for (var i = 0; i < references.Count; i++)
         {
-            for (int j = 0; j < template.Count; j++)
+            for (var j = 0; j < template.Count; j++)
             {
-                var matchingPointsRow = optimalWarpingPaths[i].Where(w => w.Row == j);
-                var matchingPointsCol = optimalWarpingPaths[i].Where(w => w.Col == j);
+                var matchingPointsRow = optimalWarpingPaths[i].Where(w => w.Row == j).ToList();
+                var matchingPointsCol = optimalWarpingPaths[i].Where(w => w.Col == j).ToList();
 
-                var isDmp = matchingPointsCol.Count() == 1 && matchingPointsRow.Count() == 1;
+                var isDmp = matchingPointsCol.Count == 1 && matchingPointsRow.Count == 1;
                 directMatchingPoints[i].Add(isDmp);
             }
         }
@@ -143,9 +144,9 @@ class EbDbaAndLsDtwClassifier : IClassifier
         // Step 3.
         // Construct the local stability sequence from the DMP's set.
         var localStability = new List<double>();
-        for (int i = 0; i < template.Count; i++)
+        for (var i = 0; i < template.Count; i++)
         {
-            localStability.Add(directMatchingPoints.Select(x => x[i]).Where(x => x).Count() / (double) references.Count);
+            localStability.Add(directMatchingPoints.Select(x => x[i]).Count(x => x) / (double) references.Count);
         }
 
         return localStability;
@@ -160,6 +161,13 @@ class EbDbaAndLsDtwClassifier : IClassifier
         ).Distance;
     }
 
+    private Dictionary<FeatureDescriptor, T> AggregateByExaminedFeatures<T>(Func<FeatureDescriptor, T> elementSelector)
+    {
+        return _examinedFeatures.ToDictionary(KeySelector, elementSelector);
+        
+        static FeatureDescriptor KeySelector(FeatureDescriptor f) => f;
+    }
+
     public ISignerModel Train(List<Signature> signatures)
     {
         var realSampler = new FirstNSampler();
@@ -170,33 +178,33 @@ class EbDbaAndLsDtwClassifier : IClassifier
 
         List<Signature> testSignatures = [..testGenuine, ..testForged];
 
-        var referenceSeriesByFeatures = examinedFeatures.ToDictionary(
+        var referenceSeriesByFeatures = _examinedFeatures.ToDictionary(
             keySelector: f => f,
             elementSelector: f =>
                 trainSignatures.Select(s => s.GetFeature<List<double>>(f)).ToList()
         );
 
-        var templateSeriesByFeatures = examinedFeatures.ToDictionary(
+        var templateSeriesByFeatures = _examinedFeatures.ToDictionary(
             keySelector: f => f,
-            elementSelector: f => EbDba(referenceSeriesByFeatures[f], EB_DBA_ITERATION_COUNT)
+            elementSelector: f => EbDba(referenceSeriesByFeatures[f], ebDbaIterationCount)
         );
 
         var references = trainSignatures
-            .Select(s => examinedFeatures.ToDictionary(
+            .Select(s => _examinedFeatures.ToDictionary(
                 keySelector: f => f,
                 elementSelector: f => s.GetFeature<List<double>>(f).ToList()
             ))
             .Select(r => new MultivariateTimeSeries(r))
             .ToList();
         var template = new MultivariateTimeSeries(templateSeriesByFeatures);
-        var localStability = EstimateLocalStatibilty(template, references);
+        var localStability = EstimateLocalStability(template, references);
 
         var lsDtwDistances = new DistanceMatrix<string, string, double>();
         foreach (var trainSignature in trainSignatures)
         {
             foreach (var testSignature in new List<Signature>([..trainSignatures, ..testSignatures]))
             {
-                var testSignatureDataByFeature = examinedFeatures.ToDictionary(
+                var testSignatureDataByFeature = _examinedFeatures.ToDictionary(
                     keySelector: f => f,
                     elementSelector: testSignature.GetFeature<List<double>>
                 );

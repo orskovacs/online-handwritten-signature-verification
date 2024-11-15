@@ -1,15 +1,15 @@
 ﻿using SigStat.Common;
 using SigStat.Common.Pipeline;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class Maximum : PipelineBase, ITransformation
+public class Maximum : PipelineBase, ITransformation
 {
     [Input]
-    required public FeatureDescriptor<List<double>> Input { get; set; }
+    public required FeatureDescriptor<List<double>> Input { get; init; }
 
     [Output("Max")]
-    required public FeatureDescriptor<double> OutputMax { get; set; }
+    public required FeatureDescriptor<double> OutputMax { get; init; }
 
     public void Transform(Signature signature)
     {

@@ -1,17 +1,17 @@
 ﻿using System.Numerics;
 
-namespace EbDbaAndLsDtw;
+namespace EbDbaLsDtw;
 
-class DtwResult<TElement, TDistance>
+internal class DtwResult<TElement, TDistance>
     where TDistance : INumber<TDistance>, IMinMaxValue<TDistance>
 {
     public static DtwResult<TElement, TDistance> Dtw(
-        IEnumerable<TElement> source,
-        IEnumerable<TElement> target,
+        List<TElement> source,
+        List<TElement> target,
         Func<TElement, TElement, int, TDistance> distance)
     {
-        var n = source.Count() + 1;
-        var m = target.Count() + 1;
+        var n = source.Count + 1;
+        var m = target.Count + 1;
         var accumulatedCostMatrix = new TDistance[n, m];
 
         for (var row = 0; row < n; row++)
@@ -28,19 +28,20 @@ class DtwResult<TElement, TDistance>
         {
             for (var col = 1; col < m; col++)
             {
-                var cost = distance(source.ElementAt(row - 1), target.ElementAt(col - 1), row - 1);
-                var minPrev = new TDistance[]
-                {
+                var cost = distance(source[row - 1], target[col - 1], row - 1);
+
+                // Find the minimum value of the previous costs
+                var minPrev = MinimumOf(
                     accumulatedCostMatrix[row - 1, col],
                     accumulatedCostMatrix[row, col - 1],
                     accumulatedCostMatrix[row - 1, col - 1]
-                }.Min()!;
+                );
 
                 accumulatedCostMatrix[row, col] = cost + minPrev;
             }
         }
 
-        var warpingPath = new List<(int Row, int Col)>();
+        var warpingPath = new List<(int Row, int Col)>(n + m);
 
         for (int row = n - 1, col = m - 1;  row > 1 || col > 1;)
         {
@@ -56,12 +57,12 @@ class DtwResult<TElement, TDistance>
             }
             else
             {
-                var minPrev = new TDistance[]
-                {
+                // Find the minimum value of the previous costs
+                var minPrev = MinimumOf(
                     accumulatedCostMatrix[row - 1, col],
                     accumulatedCostMatrix[row, col - 1],
                     accumulatedCostMatrix[row - 1, col - 1]
-                }.Min()!;
+                );
 
                 if (minPrev == accumulatedCostMatrix[row - 1, col])
                 {
@@ -86,6 +87,16 @@ class DtwResult<TElement, TDistance>
             WarpingPath = warpingPath,
             CostMatrix = accumulatedCostMatrix,
         };
+    }
+
+    private static TDistance MinimumOf(TDistance first, TDistance second, TDistance third)
+    {
+        var min = first;
+        if (second < min)
+            min = second;
+        if (third < min)
+            min = third;
+        return min;
     }
 
     private DtwResult() { }

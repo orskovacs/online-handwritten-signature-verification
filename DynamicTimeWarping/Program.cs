@@ -13,12 +13,14 @@ if (string.IsNullOrEmpty(targetString)) return;
 
 Console.WriteLine();
 
-var source = sourceString.Split(separator).Select(s => double.Parse(s)).ToArray();
-var target = targetString.Split(separator).Select(s => double.Parse(s)).ToArray();
+var source = sourceString.Split(separator).Select(double.Parse).ToArray();
+var target = targetString.Split(separator).Select(double.Parse).ToArray();
 
 var dtwResult = DtwMatrix(source, target, (s, t) => Math.Abs(s - t));
 
 WriteMatrixToConsole(dtwResult, source.Length + 1, target.Length + 1, 1, 1);
+
+return;
 
 static void WriteMatrixToConsole<T>(T[,] matrix, int n, int m, int nOffset = 0, int mOffset = 0)
 {
@@ -55,7 +57,7 @@ static TResult[,] DtwMatrix<T, TResult>(T[] source, T[] target, Func<T, T, TResu
         for (var j = 1; j < m; j++)
         {
             var cost = distance(source[i - 1], target[j - 1]);
-            var minPrev = new TResult[] {
+            var minPrev = new [] {
                 dtw[i - 1, j],
                 dtw[i, j - 1],
                 dtw[i - 1, j - 1]
