@@ -22,4 +22,4 @@ jobs:
     - name: Publish
       run: dotnet publish
     - name: Push to GitHub Packages
-      run: dotnet nuget push "EbDbaLsDtw/bin/Release/EbDbaLsDtw.1.0.0.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"
+      run: dotnet nuget add source --username orskovacs --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/orskovacs/index.json"
