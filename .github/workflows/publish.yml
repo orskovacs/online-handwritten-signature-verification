@@ -24,4 +24,4 @@ jobs:
     - name: Add GitHub Packages source
       run: dotnet nuget add source --username orskovacs --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/orskovacs/index.json"
     - name: Push to GitHub Packages
-      run: dotnet nuget push "EbDbaLsDtw/bin/Release/EbDbaLsDtw.1.0.0.nupkg" --api-key ${{ secrets.GH_PACKAGES_PAT }} --source "github"
+      run: dotnet nuget push "EbDbaLsDtw/bin/Release/EbDbaLsDtw.1.0.0.nupkg" --skip-duplicate --api-key ${{ secrets.GH_PACKAGES_PAT }} --source "github"
