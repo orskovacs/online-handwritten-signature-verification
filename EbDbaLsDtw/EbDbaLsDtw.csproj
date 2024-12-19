@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/orskovacs/online-handwritten-signature-verification</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SigStat" Version="0.2.5" />
