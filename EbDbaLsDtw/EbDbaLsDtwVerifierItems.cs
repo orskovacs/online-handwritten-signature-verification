@@ -18,7 +18,7 @@ public static class EbDbaLsDtwVerifierItems
         new Maximum { Input = Features.Y, OutputMax = UtilityFeatures.MaxY },
         new Preprocessing {
             InputX = Features.X,
-            InputY = Features.X,
+            InputY = Features.Y,
             Centroid = UtilityFeatures.Centroid,
             MaxX = UtilityFeatures.MaxX,
             MinX = UtilityFeatures.MinX,
