@@ -26,5 +26,5 @@ return;
 
 double ThresholdCalculator(List<double> distancesFromTemplate)
 {
-    return distancesFromTemplate.Average() + distancesFromTemplate.StandardDeviation() * 1.4;
+    return distancesFromTemplate.Average() + distancesFromTemplate.StandardDeviation() * 3.899;
 }
